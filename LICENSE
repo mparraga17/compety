@@ -1,21 +1,22 @@
-The MIT License (MIT)
+Copyright (c) 2026 Manuel Parraga (Pizco Deploy)
 
-Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+Todos los derechos reservados. / All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+El código de este repositorio se publica con fines de transparencia, para que
+cualquier persona pueda revisar cómo funciona la aplicación, en particular el
+tratamiento de los datos de salud.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Esa publicación NO concede licencia ni permiso para usar, copiar, modificar,
+fusionar, publicar, distribuir, sublicenciar ni vender copias del software, ni
+para crear obras derivadas, sin autorización previa y por escrito del titular.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+---
+
+The source code in this repository is published for transparency, so that anyone
+can review how the application works, in particular how it handles health data.
+
+Such publication grants NO licence or permission to use, copy, modify, merge,
+publish, distribute, sublicense or sell copies of the software, nor to create
+derivative works, without prior written permission from the copyright holder.
+
+Contacto / Contact: pizcodeploy@gmail.com

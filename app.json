@@ -1,17 +1,29 @@
 {
   "expo": {
     "name": "Compety",
-    "slug": "Compety",
+    "slug": "compety",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "owner": "pizcodeploy",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#14151a"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pizcodeploy.compety",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["fetch", "processing"]
+      }
     },
     "android": {
+      "package": "com.pizcodeploy.compety",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#14151a",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +32,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Compety lee tus entrenos y tu frecuencia cardiaca para calcular la carga de cada sesion y tu puntuacion en las ligas con tus amigos. El calculo se hace en tu iPhone: al servidor solo viaja la puntuacion.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": true
+        }
+      ],
+      "expo-localization"
+    ]
   }
 }

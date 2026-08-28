@@ -1,5 +1,3 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
 
@@ -31,6 +29,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
@@ -39,3 +38,32 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NO PUBLICO
+# El repo es publico como escaparate, pero no todo sale. Criterio: fuera los datos
+# de salud reales, la estrategia y las constantes calibradas del motor.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Datos de salud reales. Nunca en un repo publico, ni siquiera privado si se puede evitar.
+*-90d.json
+datos-reales/
+
+# Calibraciones del motor: es el trabajo que da valor al producto.
+# Van al repo privado compety-motor.
+src/motor/calibra*
+src/motor/constantes-privadas*
+
+# Notas internas y estrategia
+MEMORIA*.md
+AGENTS.md
+CLAUDE.md
+.claude/
+
+# Sembrado de datos falsos para pruebas.
+# Apple prohibe escribir datos falsos en HealthKit en produccion (5.1.3.ii),
+# asi que esto va detras de un flag de desarrollo y no se publica.
+src/dev/seed*
+
+# Capturas para la ficha del App Store
+capturas/

@@ -1,0 +1,144 @@
+/**
+ * Almacenamiento local. Todo lo que la app necesita recordar entre arranques.
+ *
+ * Por que existe una interfaz en vez de llamar a AsyncStorage directamente: AsyncStorage es
+ * un modulo nativo, asi que los tests del motor no podrian correr en Windows. Con la interfaz
+ * los tests usan el almacen en memoria y la app usa el nativo, sin cambiar la logica.
+ */
+
+export type Almacen = {
+  leer(clave: string): Promise<string | null>;
+  guardar(clave: string, valor: string): Promise<void>;
+  borrar(clave: string): Promise<void>;
+};
+
+/** Todas las claves en un sitio, para que el borrado de cuenta no se deje ninguna. */
+export const CLAVES = {
+  /** Anchor de HealthKit por tipo de dato. */
+  anchor: (tipo: string) => `anchor:${tipo}`,
+  /** Esfuerzo declarado de una sesion. */
+  esfuerzo: (idSesion: string) => `rpe:${idSesion}`,
+  /** Ultimo maximo de referencia calculado, para no releer 90 dias en cada arranque. */
+  maximo: 'maximo',
+} as const;
+
+/** Implementacion en memoria. Para tests y para el primer arranque antes del rebuild. */
+export function almacenEnMemoria(inicial: Record<string, string> = {}): Almacen & {
+  volcado(): Record<string, string>;
+} {
+  const datos = new Map(Object.entries(inicial));
+  return {
+    async leer(clave) {
+      return datos.get(clave) ?? null;
+    },
+    async guardar(clave, valor) {
+      datos.set(clave, valor);
+    },
+    async borrar(clave) {
+      datos.delete(clave);
+    },
+    volcado() {
+      return Object.fromEntries(datos);
+    },
+  };
+}
+
+async function leerJson<T>(almacen: Almacen, clave: string): Promise<T | null> {
+  const bruto = await almacen.leer(clave);
+  if (bruto === null) return null;
+  try {
+    return JSON.parse(bruto) as T;
+  } catch {
+    // Un valor corrupto no debe tumbar la app. Se trata como si no estuviera.
+    return null;
+  }
+}
+
+/**
+ * Anchor de HealthKit.
+ *
+ * ⭐ Es la pieza que evita huecos en el leaderboard. `queryQuantitySamplesWithAnchor` devuelve
+ * solo lo que cambio, lo que se borro y un anchor nuevo. Si un aviso de segundo plano se
+ * pierde, el siguiente recupera lo pendiente.
+ *
+ * Regla: en segundo plano se lee con anchor y se cachea. Nunca se recalcula el historico.
+ */
+export async function leeAnchor(almacen: Almacen, tipo: string): Promise<string | null> {
+  return almacen.leer(CLAVES.anchor(tipo));
+}
+
+export async function guardaAnchor(
+  almacen: Almacen,
+  tipo: string,
+  anchor: string,
+): Promise<void> {
+  await almacen.guardar(CLAVES.anchor(tipo), anchor);
+}
+
+/**
+ * Esfuerzo declarado, el s-RPE de 1 a 10.
+ *
+ * Este dato lo genera la app y NO existe en HealthKit, asi que sin guardarlo el deslizador no
+ * sirve de nada. Se indexa por el id de la sesion fusionada.
+ *
+ * Validez 0,88 contra TRIMP, validado en ballet profesional, que es el analogo de barre mas
+ * cercano publicado. No es un parche, es la alternativa reconocida cuando no hay pulso.
+ */
+export async function leeEsfuerzo(
+  almacen: Almacen,
+  idSesion: string,
+): Promise<number | null> {
+  const v = await almacen.leer(CLAVES.esfuerzo(idSesion));
+  if (v === null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
+}
+
+export async function guardaEsfuerzo(
+  almacen: Almacen,
+  idSesion: string,
+  rpe: number,
+): Promise<void> {
+  const acotado = Math.max(1, Math.min(10, Math.round(rpe)));
+  await almacen.guardar(CLAVES.esfuerzo(idSesion), String(acotado));
+}
+
+/** Esfuerzos de varias sesiones de una vez, para no encadenar lecturas. */
+export async function leeEsfuerzos(
+  almacen: Almacen,
+  ids: readonly string[],
+): Promise<Record<string, number>> {
+  const pares = await Promise.all(
+    ids.map(async (id) => [id, await leeEsfuerzo(almacen, id)] as const),
+  );
+  return Object.fromEntries(pares.filter(([, v]) => v !== null) as [string, number][]);
+}
+
+export type MaximoGuardado = {
+  valor: number;
+  provisional: boolean;
+  /** Cuando se calculo, en milisegundos. */
+  calculado: number;
+};
+
+/** Se recalcula cada semana, o antes si venia provisional. */
+export const CADUCIDAD_MAXIMO = 7 * 86_400_000;
+
+export async function leeMaximo(almacen: Almacen): Promise<MaximoGuardado | null> {
+  const m = await leerJson<MaximoGuardado>(almacen, CLAVES.maximo);
+  if (m === null) return null;
+  const caduco = Date.now() - m.calculado > CADUCIDAD_MAXIMO;
+  // Un maximo provisional se reintenta en cada arranque: en cuanto la persona apriete una vez,
+  // el percentil pasa a ser creible y las intensidades dejan de estar aplanadas.
+  return caduco || m.provisional ? null : m;
+}
+
+export async function guardaMaximo(
+  almacen: Almacen,
+  maximo: { valor: number; provisional: boolean },
+): Promise<void> {
+  await almacen.guardar(
+    CLAVES.maximo,
+    JSON.stringify({ ...maximo, calculado: Date.now() } satisfies MaximoGuardado),
+  );
+}

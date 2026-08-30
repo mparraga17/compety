@@ -49,6 +49,32 @@ describe('el pulso influye en la carga', () => {
       expect(f).toBeLessThanOrEqual(1.75);
     }
   });
+
+  // ⭐⭐ Segundo bug del factor, encontrado el 30 ago al portar el ranking.
+  // Sin muestra propia del deporte se usaba la mediana global de intensidad (1,07, dominada
+  // por caminar y golf), y comparar un MET alto contra esa intensidad ajena daba 1,75 a la
+  // bici, al padel y al squash. Eso no mide ceguera de la FC, mide MET alto, y contaba el
+  // esfuerzo dos veces.
+  it('sin muestra propia del deporte no se corrige nada', () => {
+    for (const tipo of ['BIKING', 'PADEL', 'SQUASH', 'PILATES', 'BARRE', 'YOGA']) {
+      const f = factorModalidad(tipo);
+      expect(f.fiable).toBe(false);
+      expect(f.factor).toBe(1);
+    }
+  });
+
+  it('la bici no recibe el mismo empujon que la fuerza', () => {
+    // En bici la FC mide el esfuerzo bien. En fuerza no, y ahi si hay brecha medida.
+    expect(factorModalidad('BIKING').factor).toBeLessThan(
+      factorModalidad('STRENGTH_TRAINING').factor,
+    );
+  });
+
+  it('solo se corrigen los deportes con intensidad medida', () => {
+    for (const tipo of ['WALKING', 'GOLF', 'TENNIS', 'RUNNING', 'STRENGTH_TRAINING', 'SPORT']) {
+      expect(factorModalidad(tipo).fiable).toBe(true);
+    }
+  });
 });
 
 describe('sesiones sin frecuencia cardiaca', () => {

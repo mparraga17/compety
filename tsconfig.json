@@ -3,5 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "types": ["jest"]
-  }
+  },
+  // Las Edge Functions corren en Deno, con su propio runtime y sus propios globales.
+  // Comprobarlas con el tsconfig de la app da falsos errores de "Cannot find name 'Deno'".
+  "exclude": ["node_modules", "supabase/functions"]
 }

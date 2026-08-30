@@ -96,6 +96,31 @@ export function intensidadTipica(tipo: string): { valor: number; fiable: boolean
  * Medido: la fuerza observa 1,00 TRIMP/min, o sea 3,4 MET implicitos, cuando la tabla dice
  * 6,0. La FC ve poco mas de la mitad del trabajo. Eso no es una suposicion, es la brecha
  * medida, y de ahi sale el 1,74.
+ *
+ * ⭐⭐ SEGUNDO BUG DEL FACTOR, encontrado el 30 ago al portar el ranking. El primero fue que
+ * el factor cancelaba la intensidad de la sesion. Este es distinto y estaba escondido en el
+ * caso por defecto.
+ *
+ * Sintoma: la bici salia con factor 1,75, el mismo empujon que la fuerza. Y el padel tambien,
+ * que es el deporte principal del producto. En los dos la FC mide el esfuerzo perfectamente.
+ *
+ * Causa: cuando el deporte no tiene muestra propia se usaba la mediana global de intensidad,
+ * 1,07, que viene dominada por caminar y golf (27 de las 46 sesiones). Comparar un MET alto
+ * contra una intensidad ajena y baja da una brecha que nadie ha medido:
+ *
+ *   BIKING   MET 7,5 / (1,07 x 3,44) = 2,04  limitado a 1,75
+ *   PADEL    MET 6,8 / (1,07 x 3,44) = 1,85  limitado a 1,75
+ *   SQUASH   MET 7,3 / (1,07 x 3,44) = 1,98  limitado a 1,75
+ *
+ * Eso no mide ceguera de la FC, mide que el deporte tiene MET alto. Y el resultado es doble
+ * conteo: un deporte exigente ya sale con intensidad alta medida por el pulso, asi que
+ * multiplicarlo otra vez por 1,75 lo cuenta dos veces.
+ *
+ * ⇒ Sin muestra propia del deporte, el factor es 1. No se corrige lo que no se ha medido. La
+ * incertidumbre de esos deportes ya la cubre el descuento `estimadaAproximada` de 0,90.
+ *
+ * 📌 Y es la sexta vez que la leccion es la misma: el bug lo encontro MEDIR, no leer el
+ * codigo. El test que fallo comparaba el orden de cuatro sesiones reales del iPhone.
  */
 export function factorModalidad(tipo: string): {
   factor: number;
@@ -110,6 +135,12 @@ export function factorModalidad(tipo: string): {
   }
 
   const { valor, fiable } = intensidadTipica(tipo);
+
+  // Sin intensidad medida en ESTE deporte no hay brecha que corregir.
+  if (!fiable) {
+    return { factor: 1, metOficial, metObservado: null, limitado: false, fiable: false };
+  }
+
   const metObservado = valor * MET_POR_TRIMPMIN;
   const bruto = metOficial / metObservado;
   const factor = +Math.max(FACTOR_MIN, Math.min(FACTOR_MAX, bruto)).toFixed(2);

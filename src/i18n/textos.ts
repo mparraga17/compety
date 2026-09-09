@@ -369,7 +369,8 @@ const ES = {
   compartirCodigo: 'Compartir invitación',
   // El mensaje que viaja por WhatsApp: enlace que abre la app (o la página que la ofrece) y
   // el código escrito, por si el mensajero rompe la URL. Tono Competi: es un reto, no un aviso.
-  invitacion: 'Te reto en mi liga de Compety. Toca el enlace o entra con el código %{codigo}: %{enlace}',
+  invitacion:
+    'Te reto en «%{liga}», mi liga de Compety. Toca el enlace o entra con el código %{codigo}: %{enlace}',
   verClasificacion: 'Ver la clasificación',
   entrarTitulo: 'Entrar en una liga',
   entrarTexto: 'Escribe el código de seis caracteres que te han pasado.',
@@ -768,7 +769,8 @@ const EN: Record<keyof typeof ES, string> = {
   ligaCreadaTexto:
     'Share the invite: the link carries the code. Without the code the league is invisible.',
   compartirCodigo: 'Share the invite',
-  invitacion: 'I challenge you in my Compety league. Tap the link or join with code %{codigo}: %{enlace}',
+  invitacion:
+    'I challenge you in “%{liga}”, my Compety league. Tap the link or join with code %{codigo}: %{enlace}',
   verClasificacion: 'See the ranking',
   entrarTitulo: 'Join a league',
   entrarTexto: 'Type the six character code you were given.',

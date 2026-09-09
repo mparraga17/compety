@@ -50,9 +50,19 @@ export function paginaTerminos(idioma: 'es' | 'en'): string {
 /** Formato del código de liga: 6 caracteres de letras y números, como los genera el servidor. */
 const CODIGO = /^[A-Z0-9]{6}$/;
 
-/** El enlace que se comparte: la página web con el código en la query. */
-export function enlaceDeLiga(codigo: string): string {
-  return `${PAGINA_INVITACION}?codigo=${encodeURIComponent(codigo.trim().toUpperCase())}`;
+/**
+ * El enlace que se comparte: la página web con el código en la query.
+ *
+ * ⭐ El NOMBRE de la liga viaja dentro del enlace, puesto por quien comparte. Es lo que permite
+ * que la página salude con «Te han invitado a Los del jueves» sin ningún endpoint público que
+ * resuelva código a nombre: ese endpoint permitiría enumerar nombres probando códigos, y la
+ * promesa del producto es que sin código la liga es invisible. El nombre solo viaja dentro del
+ * mensaje privado, que ya lo cuenta de todos modos.
+ */
+export function enlaceDeLiga(codigo: string, nombre?: string): string {
+  const base = `${PAGINA_INVITACION}?codigo=${encodeURIComponent(codigo.trim().toUpperCase())}`;
+  if (nombre === undefined || nombre.trim() === '') return base;
+  return `${base}&liga=${encodeURIComponent(nombre.trim())}`;
 }
 
 /**

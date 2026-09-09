@@ -7,6 +7,14 @@ describe('enlaces de invitación', () => {
     );
   });
 
+  test('el nombre de la liga viaja en el enlace, codificado', () => {
+    expect(enlaceDeLiga('ABC123', 'Los del jueves')).toBe(
+      'https://mparraga17.github.io/compety/liga.html?codigo=ABC123&liga=Los%20del%20jueves',
+    );
+    // Y el parser sigue sacando el código aunque haya más parámetros detrás.
+    expect(codigoDeUrl(enlaceDeLiga('ABC123', 'Los del jueves'))).toBe('ABC123');
+  });
+
   test('saca el código del esquema propio', () => {
     expect(codigoDeUrl('compety://liga/ABC123')).toBe('ABC123');
     // En minúsculas también: el código viaja escrito por humanos.

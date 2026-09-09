@@ -509,10 +509,14 @@ export function Ligas({
    * exista, así que vive en dos sitios: el bloque de "compites solo" y la fila del código.
    */
   const compartirLiga = () => {
+    // El mismo nombre que enseña el título de la pantalla. Solo se comparte en ligas
+    // privadas (zona === null en los tres puntos de entrada), así que no hay caso de zona.
+    const nombre = liga.deporte === null ? nombreLiga('global', idioma) : liga.nombre;
     void Share.share({
       message: conValores(t.invitacion, {
+        liga: nombre,
         codigo: liga.codigo,
-        enlace: enlaceDeLiga(liga.codigo),
+        enlace: enlaceDeLiga(liga.codigo, nombre),
       }),
     });
   };

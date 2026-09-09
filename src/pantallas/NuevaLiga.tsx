@@ -73,10 +73,12 @@ export function NuevaLiga({ modo, codigoInicial, onHecho, onCancelar }: Props) {
           onPress={() =>
             void Share.share({
               // Código Y enlace: el enlace abre la app (o la página que la ofrece), y el
-              // código escrito sobrevive aunque el mensajero rompa la URL.
+              // código escrito sobrevive aunque el mensajero rompa la URL. El nombre viaja
+              // en el enlace para que la página salude con la liga concreta.
               message: conValores(t.invitacion, {
+                liga: nombre.trim(),
                 codigo: creada.codigo,
-                enlace: enlaceDeLiga(creada.codigo),
+                enlace: enlaceDeLiga(creada.codigo, nombre),
               }),
             })
           }

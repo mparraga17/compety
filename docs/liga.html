@@ -60,7 +60,7 @@
       <p class="codigo" id="codigo">······</p>
       <p class="centro"><a href="#" id="copiar" role="button" data-t="copiar">Copiar el código</a></p>
 
-      <a class="boton" id="abrir" href="#" data-t="abrir">Ya tengo la app: abrir Compety</a>
+      <a class="boton" id="abrir" href="#" data-t="abrir">Unirme a la liga (ya tengo la app)</a>
       <a class="boton secundario" id="testflight" href="#" data-t="probar">Probar Compety (TestFlight)</a>
       <p class="paso" id="sin-beta" hidden data-t="sinBeta">
         La beta abre en unos días. Guarda este enlace: cuando tengas la app, el mismo enlace te mete en la liga.
@@ -99,11 +99,12 @@
     var TEXTOS = {
       es: {
         subtitulo: 'Te han invitado a una liga',
+        subtituloConNombre: 'Te han invitado a «{liga}»',
         intro: 'Compety convierte el esfuerzo de cada entreno en puntos y monta la liga con tus amigos. Una clase exigente puede sumar más que una carrera tranquila: se compite por lo que cuesta.',
         tuCodigo: 'El código de tu liga',
         copiar: 'Copiar el código',
         copiado: 'Copiado ✓',
-        abrir: 'Ya tengo la app: abrir Compety',
+        abrir: 'Unirme a la liga (ya tengo la app)',
         probar: 'Probar Compety (TestFlight)',
         sinBeta: 'La beta abre en unos días. Guarda este enlace: cuando tengas la app, el mismo enlace te mete en la liga.',
         pasos: 'Si aún no tienes Compety: instala la app desde TestFlight, entra con tu Apple ID, y toca este enlace otra vez o escribe el código en «Entrar con código».',
@@ -113,11 +114,12 @@
       },
       en: {
         subtitulo: "You've been invited to a league",
+        subtituloConNombre: "You've been invited to “{liga}”",
         intro: 'Compety turns the effort of every workout into points and runs the league with your friends. A hard class can score more than an easy run: you compete on what it costs you.',
         tuCodigo: 'Your league code',
         copiar: 'Copy the code',
         copiado: 'Copied ✓',
-        abrir: 'I have the app: open Compety',
+        abrir: 'Join the league (I have the app)',
         probar: 'Try Compety (TestFlight)',
         sinBeta: 'The beta opens in a few days. Keep this link: once you have the app, the same link puts you in the league.',
         pasos: "If you don't have Compety yet: install the app from TestFlight, sign in with your Apple ID, and tap this link again or type the code under “Join with a code”.",
@@ -152,13 +154,24 @@
     parrafoPriv.childNodes[0].textContent = t.privacidad;
 
     // El código, validado con el mismo formato que la app: 6 de letras y números.
-    var codigo = (new URLSearchParams(location.search).get('codigo') || '').trim().toUpperCase();
+    var parametros = new URLSearchParams(location.search);
+    var codigo = (parametros.get('codigo') || '').trim().toUpperCase();
     var valido = /^[A-Z0-9]{6}$/.test(codigo);
+    // El nombre de la liga viaja en el enlace, puesto por quien invita. Se pinta SIEMPRE con
+    // textContent (nunca innerHTML), así que un nombre malicioso no puede inyectar nada.
+    var nombreLiga = (parametros.get('liga') || '').trim().slice(0, 60);
 
     document.getElementById(valido ? 'con-codigo' : 'sin-codigo').hidden = false;
 
     if (valido) {
       document.getElementById('codigo').textContent = codigo;
+
+      // La invitación con nombre saluda con la liga concreta: es OTRA persona invitándote,
+      // no una app pidiéndote una instalación.
+      if (nombreLiga !== '') {
+        document.querySelector('.subtitle').textContent =
+          t.subtituloConNombre.replace('{liga}', nombreLiga);
+      }
 
       // Abrir la app por el esquema propio. Si no está instalada, iOS no hace nada y la
       // persona sigue en la página, que es exactamente el fallback que queremos.

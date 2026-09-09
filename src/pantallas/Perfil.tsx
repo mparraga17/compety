@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,8 +14,9 @@ import { Idioma } from '../componentes/Idioma';
 import { Pulsable } from '../componentes/Pulsable';
 import { elegirUsuario, FORMATO_USUARIO } from '../datos/amigos';
 import { borrarCuenta, guardarNombre, salir, type Cuenta } from '../datos/cuenta';
+import { paginaPrivacidad, paginaTerminos } from '../datos/enlaces';
 import { mensajeDe } from '../datos/errores';
-import { textos } from '../i18n/textos';
+import { idiomaActual, textos } from '../i18n/textos';
 import { tema } from '../tema';
 
 /**
@@ -195,6 +197,28 @@ export function Perfil({ cuenta, onCambio, onFuera, onAmigos, onIdioma }: Props)
       <Text style={s.seccion}>{t.ajustes}</Text>
       <Text style={s.pista}>{t.idioma}</Text>
       <Idioma onCambio={onIdioma} />
+
+      {/*
+        ⭐ Los documentos legales, accesibles SIEMPRE y no solo en el alta: Apple lo revisa en
+        apps con cuenta y HealthKit, y es donde cualquiera espera encontrarlos. Abren el
+        navegador en el idioma de la interfaz: el documento vive en la web, una sola verdad.
+      */}
+      <Pulsable
+        fila
+        style={s.opcion}
+        accessibilityRole="link"
+        onPress={() => void Linking.openURL(paginaPrivacidad(idiomaActual()))}
+      >
+        <Text style={s.opcionTexto}>{t.verPrivacidad}</Text>
+      </Pulsable>
+      <Pulsable
+        fila
+        style={s.opcion}
+        accessibilityRole="link"
+        onPress={() => void Linking.openURL(paginaTerminos(idiomaActual()))}
+      >
+        <Text style={s.opcionTexto}>{t.verTerminos}</Text>
+      </Pulsable>
 
       {/* ── Cuenta ─────────────────────────────────────────────────────────── */}
       <Text style={s.seccion}>{t.cuenta}</Text>

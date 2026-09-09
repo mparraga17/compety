@@ -76,6 +76,13 @@ const ES = {
     'Es con lo que te encuentran tus amigos para agregarte. Solo verán tu nombre, nunca tus datos, hasta que estéis en la misma liga.',
   formatoUsuario: 'Entre 3 y 20 caracteres: letras, números y guion bajo.',
   listo: 'Listo',
+  // Aviso legal del alta, en fragmentos porque los dos enlaces van dentro de la frase.
+  legalAntes: 'Al continuar aceptas los ',
+  legalTerminos: 'términos',
+  legalEntre: ' y la ',
+  legalPrivacidad: 'política de privacidad',
+  verPrivacidad: 'Política de privacidad',
+  verTerminos: 'Términos y condiciones',
 
   // ── Pestañas ─────────────────────────────────────────────────────────────
   tabHoy: 'Hoy',
@@ -512,6 +519,12 @@ const EN: Record<keyof typeof ES, string> = {
     "It's how your friends find you. They only see your name, never your data, until you're in the same league.",
   formatoUsuario: '3 to 20 characters: letters, numbers and underscore.',
   listo: 'Done',
+  legalAntes: 'By continuing you accept the ',
+  legalTerminos: 'terms',
+  legalEntre: ' and the ',
+  legalPrivacidad: 'privacy policy',
+  verPrivacidad: 'Privacy policy',
+  verTerminos: 'Terms and conditions',
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   tabHoy: 'Today',

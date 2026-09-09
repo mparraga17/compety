@@ -58,7 +58,7 @@
     <div id="con-codigo" hidden>
       <p class="centro paso" data-t="tuCodigo">El código de tu liga</p>
       <p class="codigo" id="codigo">······</p>
-      <p class="centro"><a href="#" id="copiar" data-t="copiar">Copiar el código</a></p>
+      <p class="centro"><a href="#" id="copiar" role="button" data-t="copiar">Copiar el código</a></p>
 
       <a class="boton" id="abrir" href="#" data-t="abrir">Ya tengo la app: abrir Compety</a>
       <a class="boton secundario" id="testflight" href="#" data-t="probar">Probar Compety (TestFlight)</a>
@@ -84,7 +84,10 @@
   </main>
 
   <footer>
-    <p>Compety · Pizco Deploy</p>
+    <p>Compety · Pizco Deploy ·
+      <a href="privacy-es.html" id="pie-privacidad">Privacidad</a> ·
+      <a href="terms-es.html" id="pie-terminos">Términos</a>
+    </p>
   </footer>
 
   <script>
@@ -135,8 +138,13 @@
     document.title = t.titulo;
     document.documentElement.lang = idioma;
     if (idioma === 'en') {
-      var priv = document.getElementById('enlace-privacidad');
-      priv.href = 'privacy-en.html';
+      document.getElementById('enlace-privacidad').href = 'privacy-en.html';
+      var piePriv = document.getElementById('pie-privacidad');
+      var pieTerm = document.getElementById('pie-terminos');
+      piePriv.href = 'privacy-en.html';
+      piePriv.textContent = 'Privacy';
+      pieTerm.href = 'terms-en.html';
+      pieTerm.textContent = 'Terms';
     }
     document.getElementById('enlace-privacidad').textContent = t.enlacePrivacidad;
     // El párrafo de privacidad mezcla texto y enlace: se recompone tras traducir.

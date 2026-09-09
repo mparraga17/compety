@@ -25,8 +25,27 @@
  * y así se prueba en node como el resto de `datos`.
  */
 
+/** Raíz del sitio en GitHub Pages: la invitación y las páginas legales viven ahí. */
+const SITIO = 'https://mparraga17.github.io/compety';
+
 /** La página de invitación, servida por GitHub Pages desde `docs/`. */
-export const PAGINA_INVITACION = 'https://mparraga17.github.io/compety/liga.html';
+export const PAGINA_INVITACION = `${SITIO}/liga.html`;
+
+/**
+ * Páginas legales, en el idioma de la interfaz.
+ *
+ * ⭐ Se enlazan DENTRO de la app (alta y Perfil) porque las dos normas lo piden por caminos
+ * distintos: Apple exige que una app con cuenta y HealthKit tenga su política accesible desde
+ * la propia app, y el RGPD pide transparencia en el momento en que empieza el tratamiento, que
+ * es el alta.
+ */
+export function paginaPrivacidad(idioma: 'es' | 'en'): string {
+  return `${SITIO}/privacy-${idioma}.html`;
+}
+
+export function paginaTerminos(idioma: 'es' | 'en'): string {
+  return `${SITIO}/terms-${idioma}.html`;
+}
 
 /** Formato del código de liga: 6 caracteres de letras y números, como los genera el servidor. */
 const CODIGO = /^[A-Z0-9]{6}$/;

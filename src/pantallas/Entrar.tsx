@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,8 +17,9 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { elegirUsuario, FORMATO_USUARIO } from '../datos/amigos';
 import { entrarConApple, guardarNombre, hayEntradaApple, type Cuenta } from '../datos/cuenta';
+import { paginaPrivacidad, paginaTerminos } from '../datos/enlaces';
 import { mensajeDe } from '../datos/errores';
-import { textos } from '../i18n/textos';
+import { idiomaActual, textos } from '../i18n/textos';
 import { tema } from '../tema';
 
 /**
@@ -127,6 +129,34 @@ export function Entrar({ onDentro }: Props) {
             />
           )}
 
+          {hayApple === true && (
+            /*
+              ⭐ El aviso legal va JUNTO al botón que crea la cuenta, no escondido en un menú.
+              Apple pide la política accesible en la app (y esta app lee HealthKit), y el RGPD
+              pide transparencia donde empieza el tratamiento, que es exactamente este botón.
+              Los enlaces abren el navegador: el documento vive en la web, una sola verdad.
+            */
+            <Text style={s.legal}>
+              {t.legalAntes}
+              <Text
+                style={s.legalEnlace}
+                accessibilityRole="link"
+                onPress={() => void Linking.openURL(paginaTerminos(idiomaActual()))}
+              >
+                {t.legalTerminos}
+              </Text>
+              {t.legalEntre}
+              <Text
+                style={s.legalEnlace}
+                accessibilityRole="link"
+                onPress={() => void Linking.openURL(paginaPrivacidad(idiomaActual()))}
+              >
+                {t.legalPrivacidad}
+              </Text>
+              .
+            </Text>
+          )}
+
           {hayApple === false && <Text style={s.error}>{t.sinApple}</Text>}
         </>
       )}
@@ -212,6 +242,14 @@ const s = StyleSheet.create({
   marca: { marginBottom: tema.espacio.l },
   pista: { ...tema.tipo.detalle, color: tema.color.textoSuave, marginBottom: tema.espacio.m },
   botonApple: { height: 50, marginTop: tema.espacio.m },
+  // El aviso legal: discreto pero legible (textoTenue ya pasa el 4,5:1 de WCAG).
+  legal: {
+    ...tema.tipo.micro,
+    color: tema.color.textoTenue,
+    textAlign: 'center',
+    marginTop: tema.espacio.m,
+  },
+  legalEnlace: { color: tema.color.marca, textDecorationLine: 'underline' },
   campo: {
     ...tema.tipo.cuerpo,
     minHeight: tema.tactil,

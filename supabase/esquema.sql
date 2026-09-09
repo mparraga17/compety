@@ -201,9 +201,19 @@ begin
   end if;
 
   -- Sin I, O, 0 ni 1, que se confunden al dictarlos.
+  --
+  -- ⚠️ `extensions.` va cualificado a proposito. pgcrypto vive en el esquema `extensions` en
+  -- Supabase, y esta funcion fija `search_path = public`, asi que sin el prefijo Postgres da
+  -- 42883 «function gen_random_bytes(integer) does not exist» al crear la primera liga.
+  -- (`gen_random_uuid` si es nativo de Postgres 13+, por eso los `default` de las tablas van
+  -- sin prefijo.)
+  --
+  -- El `upper` va ANTES del `translate`: al reves, una 'i' o una 'o' de base64 se convertian en
+  -- I y O despues de limpiarlas, que es justo lo que se queria evitar.
   loop
-    v_codigo := upper(
-      substr(translate(encode(gen_random_bytes(8), 'base64'), '+/=IO01lo', 'ABCDEFGHJ'), 1, 6)
+    v_codigo := substr(
+      translate(upper(encode(extensions.gen_random_bytes(8), 'base64')), '+/=IO01', 'ABCDEFG'),
+      1, 6
     );
     exit when not exists (select 1 from ligas where codigo = v_codigo);
     v_intentos := v_intentos + 1;
@@ -338,9 +348,17 @@ as $$
   select nombre from perfiles where id = p_usuario;
 $$;
 
--- ⚠️ Sin GRANT a anon ni authenticated: solo service_role la puede llamar.
-revoke execute on function nombre_de(uuid) from anon, authenticated;
-revoke execute on function destinatarios_de(uuid) from anon, authenticated;
+-- ⚠️ Solo service_role puede llamarlas.
+--
+-- ⛔ Y hay que revocar de `public` PRIMERO, no solo de anon y authenticated. Postgres concede
+-- EXECUTE a la pseudo-rol PUBLIC en cuanto se crea una funcion, y anon y authenticated lo
+-- heredan de ahi. Revocando solo de ellos, el permiso sigue llegando por PUBLIC y estas dos
+-- funciones quedarian abiertas: cualquiera con la clave publica podria sacar los tokens push
+-- y los nombres de gente que no esta en sus ligas.
+revoke execute on function nombre_de(uuid) from public, anon, authenticated;
+revoke execute on function destinatarios_de(uuid) from public, anon, authenticated;
+grant execute on function nombre_de(uuid) to service_role;
+grant execute on function destinatarios_de(uuid) to service_role;
 
 -- ── ⭐ Semanas cerradas: la puntuacion se CONGELA ───────────────────────────────
 -- Decision de producto que habia que tomar antes de guardar datos, porque cambiar tablas con

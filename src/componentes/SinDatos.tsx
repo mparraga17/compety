@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Pulsable } from './Pulsable';
 
 import { abrirAjustes } from '../salud/estado';
 import { textos } from '../i18n/textos';
@@ -26,9 +28,9 @@ export function SinDatos({ frecuenciaCardiaca = false }: Props) {
       <Text style={s.cuerpo}>
         {frecuenciaCardiaca ? t.sinDatosFc : t.sinDatosCuerpo}
       </Text>
-      <Pressable onPress={abrirAjustes} accessibilityRole="button">
+      <Pulsable onPress={abrirAjustes} accessibilityRole="button">
         <Text style={s.accion}>{t.revisarPermisos}</Text>
-      </Pressable>
+      </Pulsable>
     </View>
   );
 }

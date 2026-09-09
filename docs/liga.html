@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compety · Invitación</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Solo lo propio de esta página; el resto viene de style.css. */
+    .codigo {
+      font-size: 44px;
+      font-weight: 600;
+      letter-spacing: 10px;
+      color: var(--brand);
+      text-align: center;
+      margin: 28px 0 6px;
+      font-variant-numeric: tabular-nums;
+      /* El último carácter no arrastra su letter-spacing: sin esto el bloque queda descentrado. */
+      text-indent: 10px;
+    }
+    .boton {
+      display: block;
+      width: 100%;
+      padding: 14px 16px;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--brand);
+      color: var(--bg);
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .boton.secundario {
+      background: transparent;
+      color: var(--brand);
+    }
+    .paso { color: var(--soft); font-size: 14px; margin: 4px 0; }
+    .centro { text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Compety</h1>
+    <p class="subtitle" data-t="subtitulo">Te han invitado a una liga</p>
+  </header>
+
+  <main>
+    <p data-t="intro">
+      Compety convierte el esfuerzo de cada entreno en puntos y monta la liga con tus amigos.
+      Una clase exigente puede sumar más que una carrera tranquila: se compite por lo que cuesta.
+    </p>
+
+    <!-- El código de la invitación, si el enlace lo trae. -->
+    <div id="con-codigo" hidden>
+      <p class="centro paso" data-t="tuCodigo">El código de tu liga</p>
+      <p class="codigo" id="codigo">······</p>
+      <p class="centro"><a href="#" id="copiar" data-t="copiar">Copiar el código</a></p>
+
+      <a class="boton" id="abrir" href="#" data-t="abrir">Ya tengo la app: abrir Compety</a>
+      <a class="boton secundario" id="testflight" href="#" data-t="probar">Probar Compety (TestFlight)</a>
+      <p class="paso" id="sin-beta" hidden data-t="sinBeta">
+        La beta abre en unos días. Guarda este enlace: cuando tengas la app, el mismo enlace te mete en la liga.
+      </p>
+
+      <div class="aviso">
+        <p data-t="pasos"><strong>Si aún no tienes Compety:</strong> instala la app desde TestFlight,
+        entra con tu Apple ID, y toca este enlace otra vez o escribe el código en «Entrar con código».</p>
+      </div>
+    </div>
+
+    <!-- Sin código en el enlace: página genérica de descarga. -->
+    <div id="sin-codigo" hidden>
+      <a class="boton" id="testflight-solo" href="#" data-t="probar">Probar Compety (TestFlight)</a>
+    </div>
+
+    <p class="paso" data-t="privacidad">
+      Tus datos de salud se quedan en tu iPhone. Al servidor solo viaja tu puntuación.
+      <a href="privacy-es.html" id="enlace-privacidad">Política de privacidad</a>.
+    </p>
+  </main>
+
+  <footer>
+    <p>Compety · Pizco Deploy</p>
+  </footer>
+
+  <script>
+    /* 📌 PEGAR AQUÍ el enlace público de TestFlight en cuanto exista (App Store Connect →
+       TestFlight → enlace público). Vacío, la página lo cuenta con honestidad en vez de
+       enseñar un botón que no lleva a ningún sitio. */
+    var TESTFLIGHT = '';
+
+    var TEXTOS = {
+      es: {
+        subtitulo: 'Te han invitado a una liga',
+        intro: 'Compety convierte el esfuerzo de cada entreno en puntos y monta la liga con tus amigos. Una clase exigente puede sumar más que una carrera tranquila: se compite por lo que cuesta.',
+        tuCodigo: 'El código de tu liga',
+        copiar: 'Copiar el código',
+        copiado: 'Copiado ✓',
+        abrir: 'Ya tengo la app: abrir Compety',
+        probar: 'Probar Compety (TestFlight)',
+        sinBeta: 'La beta abre en unos días. Guarda este enlace: cuando tengas la app, el mismo enlace te mete en la liga.',
+        pasos: 'Si aún no tienes Compety: instala la app desde TestFlight, entra con tu Apple ID, y toca este enlace otra vez o escribe el código en «Entrar con código».',
+        privacidad: 'Tus datos de salud se quedan en tu iPhone. Al servidor solo viaja tu puntuación. ',
+        enlacePrivacidad: 'Política de privacidad',
+        titulo: 'Compety · Invitación'
+      },
+      en: {
+        subtitulo: "You've been invited to a league",
+        intro: 'Compety turns the effort of every workout into points and runs the league with your friends. A hard class can score more than an easy run: you compete on what it costs you.',
+        tuCodigo: 'Your league code',
+        copiar: 'Copy the code',
+        copiado: 'Copied ✓',
+        abrir: 'I have the app: open Compety',
+        probar: 'Try Compety (TestFlight)',
+        sinBeta: 'The beta opens in a few days. Keep this link: once you have the app, the same link puts you in the league.',
+        pasos: "If you don't have Compety yet: install the app from TestFlight, sign in with your Apple ID, and tap this link again or type the code under “Join with a code”.",
+        privacidad: 'Your health data stays on your iPhone. Only your score travels to the server. ',
+        enlacePrivacidad: 'Privacy policy',
+        titulo: 'Compety · Invitation'
+      }
+    };
+
+    var idioma = (navigator.language || 'es').toLowerCase().indexOf('es') === 0 ? 'es' : 'en';
+    var t = TEXTOS[idioma];
+
+    // Traducción por atributo, sin frameworks: los data-t apuntan a la clave.
+    document.querySelectorAll('[data-t]').forEach(function (el) {
+      var clave = el.getAttribute('data-t');
+      if (t[clave]) el.textContent = t[clave];
+    });
+    document.title = t.titulo;
+    document.documentElement.lang = idioma;
+    if (idioma === 'en') {
+      var priv = document.getElementById('enlace-privacidad');
+      priv.href = 'privacy-en.html';
+    }
+    document.getElementById('enlace-privacidad').textContent = t.enlacePrivacidad;
+    // El párrafo de privacidad mezcla texto y enlace: se recompone tras traducir.
+    var parrafoPriv = document.getElementById('enlace-privacidad').parentNode;
+    parrafoPriv.childNodes[0].textContent = t.privacidad;
+
+    // El código, validado con el mismo formato que la app: 6 de letras y números.
+    var codigo = (new URLSearchParams(location.search).get('codigo') || '').trim().toUpperCase();
+    var valido = /^[A-Z0-9]{6}$/.test(codigo);
+
+    document.getElementById(valido ? 'con-codigo' : 'sin-codigo').hidden = false;
+
+    if (valido) {
+      document.getElementById('codigo').textContent = codigo;
+
+      // Abrir la app por el esquema propio. Si no está instalada, iOS no hace nada y la
+      // persona sigue en la página, que es exactamente el fallback que queremos.
+      document.getElementById('abrir').href = 'compety://liga/' + codigo;
+
+      document.getElementById('copiar').addEventListener('click', function (e) {
+        e.preventDefault();
+        var self = this;
+        navigator.clipboard.writeText(codigo).then(function () {
+          self.textContent = t.copiado;
+        });
+      });
+    }
+
+    // TestFlight: con enlace, botón; sin él, la verdad.
+    ['testflight', 'testflight-solo'].forEach(function (id) {
+      var boton = document.getElementById(id);
+      if (!boton) return;
+      if (TESTFLIGHT) boton.href = TESTFLIGHT;
+      else boton.hidden = true;
+    });
+    if (!TESTFLIGHT) {
+      var nota = document.getElementById('sin-beta');
+      if (nota) nota.hidden = false;
+    }
+  </script>
+</body>
+</html>

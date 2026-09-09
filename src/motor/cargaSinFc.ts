@@ -21,13 +21,31 @@ import {
 
 export type OrigenCarga = 'medida' | 'declarada' | 'estimada';
 
+/**
+ * Un paso del desglose explicable.
+ *
+ * ⛔ Antes los pasos eran strings en espanol escritos aqui dentro, y con la app en ingles salian
+ * en espanol. Misma regla que costo el bug del `nombre: 'Tú'`: un dato NUNCA lleva texto
+ * traducible dentro. Ahora el paso lleva su clave y sus cifras, y la frase la arma la interfaz.
+ */
+export type Paso = {
+  clave:
+    | 'intensidadMedida'
+    | 'intensidadDeclarada'
+    | 'intensidadTipica'
+    | 'volumen'
+    | 'factorModalidad'
+    | 'descuentoSinPulso';
+  datos: Record<string, number | string>;
+};
+
 export type Carga = {
   valor: number;
   origen: OrigenCarga;
   /** Factor de descuento aplicado. 1 cuando la carga es medida. */
   descuento: number;
   /** Para el desglose explicable que ve el usuario. */
-  pasos: readonly string[];
+  pasos: readonly Paso[];
   /** true cuando la estimacion se apoya en la mediana global por falta de muestra. */
   aproximado?: boolean;
 };
@@ -86,17 +104,23 @@ export function cargaMedida(entrada: {
   const volumen = minutos ** K_VOLUMEN;
   const valor = intensidad * mod.factor * volumen;
 
-  const pasos = [
-    `intensidad medida por tu pulso, ${intensidad.toFixed(2)} por minuto`,
-    `${Math.round(minutos)} min comprimidos a ${volumen.toFixed(1)}`,
+  const pasos: Paso[] = [
+    { clave: 'intensidadMedida', datos: { intensidad: +intensidad.toFixed(2) } },
   ];
   if (mod.factor !== 1 && mod.metOficial !== null) {
-    pasos.splice(
-      1,
-      0,
-      `x${mod.factor} porque en este deporte el pulso suele marcar ${mod.metObservado} MET y la tabla da ${mod.metOficial}`,
-    );
+    pasos.push({
+      clave: 'factorModalidad',
+      datos: {
+        factor: mod.factor,
+        metObservado: mod.metObservado ?? 0,
+        metOficial: mod.metOficial,
+      },
+    });
   }
+  pasos.push({
+    clave: 'volumen',
+    datos: { minutos: Math.round(minutos), volumen: +volumen.toFixed(1) },
+  });
 
   return { valor: +valor.toFixed(1), origen: 'medida', descuento: 1, pasos };
 }
@@ -123,9 +147,12 @@ export function cargaDeclarada(rpe: number, minutos: number, tipo: string): Carg
     origen: 'declarada',
     descuento: DESCUENTO.declarada,
     pasos: [
-      `esfuerzo declarado ${esfuerzo} de 10, equivale a ${intensidad.toFixed(2)} de intensidad`,
-      `${Math.round(minutos)} min comprimidos a ${volumen.toFixed(1)}`,
-      `descuento por no medir el pulso, x${DESCUENTO.declarada}`,
+      {
+        clave: 'intensidadDeclarada',
+        datos: { esfuerzo, intensidad: +intensidad.toFixed(2) },
+      },
+      { clave: 'volumen', datos: { minutos: Math.round(minutos), volumen: +volumen.toFixed(1) } },
+      { clave: 'descuentoSinPulso', datos: { descuento: DESCUENTO.declarada } },
     ],
   };
 }
@@ -146,10 +173,13 @@ export function cargaEstimada(tipo: string, minutos: number): Carga | null {
   const descuento = fiable ? DESCUENTO.estimada : DESCUENTO.estimadaAproximada;
   const carga = intensidad * mod.factor * volumen * descuento;
 
-  const pasos = [
-    `intensidad habitual en ${fiable ? 'este deporte' : 'actividades parecidas'}, ${intensidad.toFixed(2)} por minuto`,
-    `${Math.round(minutos)} min comprimidos a ${volumen.toFixed(1)}`,
-    `descuento por no medir el pulso, x${descuento}`,
+  const pasos: readonly Paso[] = [
+    {
+      clave: 'intensidadTipica',
+      datos: { intensidad: +intensidad.toFixed(2), propia: fiable ? 1 : 0 },
+    },
+    { clave: 'volumen', datos: { minutos: Math.round(minutos), volumen: +volumen.toFixed(1) } },
+    { clave: 'descuentoSinPulso', datos: { descuento } },
   ];
 
   return {

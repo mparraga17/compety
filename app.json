@@ -7,9 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "owner": "pizcodeploy",
+    "scheme": "compety",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pizcodeploy.compety",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
@@ -41,7 +43,14 @@
         }
       ],
       "expo-localization",
-      "expo-background-task"
+      "expo-background-task",
+      "expo-apple-authentication",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Compety usa tu ubicacion UNA vez, al elegir tu zona, para sugerirte tu ciudad y tu distrito en las ligas locales. No se rastrea tu posicion ni se guarda ninguna coordenada: al servidor solo viaja el nombre de la zona que tu confirmes."
+        }
+      ]
     ],
     "extra": {
       "eas": {

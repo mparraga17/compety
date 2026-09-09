@@ -1,36 +1,58 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
+  Animated,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
-import { entrarConCodigo, guardarNombre, pedirEnlace, type Cuenta } from '../datos/cuenta';
+import { Marca } from '../componentes/Marca';
+import { Pulsable } from '../componentes/Pulsable';
+import { ESCALON, useEntrada } from '../movimiento';
+import * as AppleAuthentication from 'expo-apple-authentication';
+
+import { elegirUsuario, FORMATO_USUARIO } from '../datos/amigos';
+import { entrarConApple, guardarNombre, hayEntradaApple, type Cuenta } from '../datos/cuenta';
+import { mensajeDe } from '../datos/errores';
+import { textos } from '../i18n/textos';
 import { tema } from '../tema';
 
 /**
  * Alta y entrada.
  *
- * Correo con codigo de seis digitos, sin contrasena. Cada paso de mas en el alta cuesta gente,
- * y el margen es estrecho: solo el 3 % de usuarios de apps de salud sigue activo a los 30 dias.
+ * Un toque con Apple y dentro. Sin correo, sin contrasena, sin codigo que esperar. Cada paso de
+ * mas en el alta cuesta gente, y el margen es estrecho: solo el 3 % de usuarios de apps de salud
+ * sigue activo a los 30 dias.
  *
- * El nombre se pide al final y con la razon delante: es lo unico que van a ver los demas.
+ * Luego dos datos, y los dos con la razon delante porque hacen cosas distintas:
+ *   - nombre visible: lo que ven los demas en la clasificacion.
+ *   - nombre de usuario: con lo que te encuentran para agregarte.
  */
 
-type Paso = 'correo' | 'codigo' | 'nombre';
+type Paso = 'entrar' | 'nombre' | 'usuario';
 type Props = { onDentro: (cuenta: Cuenta) => void };
 
 export function Entrar({ onDentro }: Props) {
-  const [paso, setPaso] = useState<Paso>('correo');
-  const [correo, setCorreo] = useState('');
-  const [codigo, setCodigo] = useState('');
+  const t = textos();
+  const [paso, setPaso] = useState<Paso>('entrar');
   const [nombre, setNombre] = useState('');
+  const [usuario, setUsuario] = useState('');
   const [cuenta, setCuenta] = useState<Cuenta | null>(null);
+  const [hayApple, setHayApple] = useState<boolean | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // La cascada de entrada del paso de marca. Los hooks van aquí arriba porque el paso cambia.
+  const entradaMarca = useEntrada(0);
+  const entradaTitulo = useEntrada(ESCALON);
+  const entradaLema = useEntrada(ESCALON * 2);
+
+  useEffect(() => {
+    void hayEntradaApple().then(setHayApple);
+  }, []);
 
   async function accion(fn: () => Promise<void>) {
     setOcupado(true);
@@ -38,136 +60,180 @@ export function Entrar({ onDentro }: Props) {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(mensajeDe(e));
     } finally {
       setOcupado(false);
     }
   }
 
-  return (
-    <View style={s.fondo}>
-      {paso === 'correo' && (
-        <>
-          <Text style={s.titulo}>Entra con tu correo</Text>
-          <Text style={s.suave}>
-            Te mandamos un código de seis dígitos. Sin contraseñas que recordar.
-          </Text>
-          <TextInput
-            style={s.campo}
-            value={correo}
-            onChangeText={setCorreo}
-            placeholder="tucorreo@ejemplo.com"
-            placeholderTextColor={tema.color.textoSuave}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            inputMode="email"
-            accessibilityLabel="Correo electrónico"
-          />
-          <Pressable
-            style={[s.boton, (ocupado || correo.length < 5) && s.botonApagado]}
-            disabled={ocupado || correo.length < 5}
-            onPress={() => accion(async () => {
-              await pedirEnlace(correo);
-              setPaso('codigo');
-            })}
-          >
-            <Text style={s.botonTexto}>Enviar código</Text>
-          </Pressable>
-        </>
-      )}
+  /** Al entrar, salta los pasos que esa persona ya tenga hechos. */
+  function siguiente(c: Cuenta) {
+    setCuenta(c);
+    if (c.nombre === null || c.nombre.length === 0) {
+      setNombre('');
+      setPaso('nombre');
+    } else if (c.usuario === null) {
+      setNombre(c.nombre);
+      setPaso('usuario');
+    } else {
+      onDentro(c);
+    }
+  }
 
-      {paso === 'codigo' && (
+  return (
+    /*
+      ⭐ `ScrollView` con `keyboardShouldPersistTaps` y no un `View` a pelo. Es el arreglo del
+      teclado que ya se cazó en NuevaLiga y no se propagó aquí: con un `View`, el primer toque
+      en el botón solo cierra el teclado y hay que tocar dos veces, y no hay forma de quitar el
+      teclado tocando el fondo. Esta pantalla tiene dos pasos con TextInput, así que sufría ambos.
+    */
+    <ScrollView
+      style={s.fondo}
+      contentContainerStyle={s.contenido}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+    >
+      {paso === 'entrar' && (
         <>
-          <Text style={s.titulo}>Escribe el código</Text>
-          <Text style={s.suave}>Lo hemos enviado a {correo}.</Text>
-          <TextInput
-            style={[s.campo, s.campoCodigo]}
-            value={codigo}
-            onChangeText={setCodigo}
-            placeholder="000000"
-            placeholderTextColor={tema.color.textoSuave}
-            keyboardType="number-pad"
-            inputMode="numeric"
-            maxLength={6}
-            accessibilityLabel="Código de seis dígitos"
-          />
-          <Pressable
-            style={[s.boton, (ocupado || codigo.length < 6) && s.botonApagado]}
-            disabled={ocupado || codigo.length < 6}
-            onPress={() => accion(async () => {
-              const c = await entrarConCodigo(correo, codigo);
-              setCuenta(c);
-              if (c?.nombre != null && c.nombre.length > 0) onDentro(c);
-              else setPaso('nombre');
-            })}
-          >
-            <Text style={s.botonTexto}>Entrar</Text>
-          </Pressable>
-          <Pressable style={s.secundario} onPress={() => setPaso('correo')}>
-            <Text style={s.secundarioTexto}>Cambiar de correo</Text>
-          </Pressable>
+          {/*
+            ⭐ El momento de marca de la app: esta pantalla se ve UNA vez en la vida del
+            usuario, así que aquí sí se gana la entrada escalonada (marca, nombre, lema:
+            40 ms entre elementos, la regla de la skill). La marca va a tamaño de portada y
+            el nombre del producto debajo, sin repetirse en el lector de pantalla porque la
+            imagen es decorativa.
+          */}
+          <Animated.View style={entradaMarca}>
+            <Marca lado={84} estilo={s.marca} />
+          </Animated.View>
+          {/* El nombre del producto no se traduce. */}
+          <Animated.View style={entradaTitulo}>
+            <Text style={s.titulo}>Compety</Text>
+          </Animated.View>
+          <Animated.View style={entradaLema}>
+            <Text style={s.suave}>{t.entradaLema}</Text>
+          </Animated.View>
+
+          {hayApple === true && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={tema.radio.m}
+              style={s.botonApple}
+              onPress={() => accion(async () => {
+                const c = await entrarConApple();
+                // null es que canceló. No es error y no pinta nada.
+                if (c !== null) siguiente(c);
+              })}
+            />
+          )}
+
+          {hayApple === false && <Text style={s.error}>{t.sinApple}</Text>}
         </>
       )}
 
       {paso === 'nombre' && (
         <>
-          <Text style={s.titulo}>¿Cómo te llamamos?</Text>
-          <Text style={s.suave}>
-            Es lo único que van a ver los demás en la clasificación, junto con tu puntuación.
-          </Text>
+          <Text style={s.titulo}>{t.comoTeLlamamos}</Text>
+          <Text style={s.suave}>{t.nombreVisibleTexto}</Text>
           <TextInput
             style={s.campo}
             value={nombre}
             onChangeText={setNombre}
-            placeholder="Tu nombre"
+            placeholder={t.tuNombre}
             placeholderTextColor={tema.color.textoSuave}
             maxLength={40}
-            accessibilityLabel="Nombre visible"
+            accessibilityLabel={t.nombreVisible}
           />
-          <Pressable
+          <Pulsable
             style={[s.boton, (ocupado || nombre.trim().length === 0) && s.botonApagado]}
             disabled={ocupado || nombre.trim().length === 0}
+            accessibilityRole="button"
             onPress={() => accion(async () => {
               await guardarNombre(nombre);
-              if (cuenta !== null) onDentro({ ...cuenta, nombre: nombre.trim() });
+              if (cuenta !== null) {
+                setCuenta({ ...cuenta, nombre: nombre.trim() });
+                setPaso('usuario');
+              }
             })}
           >
-            <Text style={s.botonTexto}>Listo</Text>
-          </Pressable>
+            <Text style={s.botonTexto}>{t.seguir}</Text>
+          </Pulsable>
+        </>
+      )}
+
+      {paso === 'usuario' && (
+        <>
+          <Text style={s.titulo}>{t.eligeUsuario}</Text>
+          <Text style={s.suave}>{t.usuarioTexto}</Text>
+          <View style={s.conArroba}>
+            <Text style={s.arroba}>@</Text>
+            <TextInput
+              style={[s.campo, s.campoUsuario]}
+              value={usuario}
+              onChangeText={(t) => setUsuario(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              placeholder="tunombre"
+              placeholderTextColor={tema.color.textoSuave}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={20}
+              accessibilityLabel={t.nombreUsuario}
+            />
+          </View>
+          <Text style={s.pista}>{t.formatoUsuario}</Text>
+          <Pulsable
+            style={[s.boton, (ocupado || !FORMATO_USUARIO.test(usuario)) && s.botonApagado]}
+            disabled={ocupado || !FORMATO_USUARIO.test(usuario)}
+            accessibilityRole="button"
+            onPress={() => accion(async () => {
+              await elegirUsuario(usuario);
+              if (cuenta !== null) onDentro({ ...cuenta, usuario });
+            })}
+          >
+            <Text style={s.botonTexto}>{t.listo}</Text>
+          </Pulsable>
         </>
       )}
 
       {ocupado && <ActivityIndicator color={tema.color.marca} style={s.espera} />}
       {error !== null && <Text style={s.error}>{error}</Text>}
-    </View>
+    </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  fondo: { flex: 1, backgroundColor: tema.color.fondo, padding: tema.espacio.l, justifyContent: 'center' },
-  titulo: { ...tema.tipo.titulo, color: tema.color.texto, marginBottom: tema.espacio.s },
+  fondo: { flex: 1, backgroundColor: tema.color.fondo },
+  // `flexGrow` y no `flex` en el contenido de un ScrollView: es lo que permite centrar en
+  // vertical sin romper el scroll cuando el teclado reduce el hueco.
+  contenido: { flexGrow: 1, padding: tema.espacio.l, justifyContent: 'center' },
+  // ⭐ Título de PANTALLA, 22px: "¿Cómo te llamamos?" era un h1 de 15px sin cifra al lado que
+  // lo justificara. Es la media-regla que ya se corrigió en Sesiones, aplicada aquí.
+  titulo: { ...tema.tipo.tituloPantalla, color: tema.color.texto, marginBottom: tema.espacio.s },
   suave: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, marginBottom: tema.espacio.l },
+  marca: { marginBottom: tema.espacio.l },
+  pista: { ...tema.tipo.detalle, color: tema.color.textoSuave, marginBottom: tema.espacio.m },
+  botonApple: { height: 50, marginTop: tema.espacio.m },
   campo: {
     ...tema.tipo.cuerpo,
+    minHeight: tema.tactil,
     color: tema.color.texto,
-    backgroundColor: '#1d1f27',
+    backgroundColor: tema.color.superficie,
     borderRadius: tema.radio.m,
     paddingHorizontal: tema.espacio.m,
     paddingVertical: tema.espacio.m,
     marginBottom: tema.espacio.m,
   },
-  campoCodigo: { fontSize: 26, letterSpacing: 6, textAlign: 'center' },
+  conArroba: { flexDirection: 'row', alignItems: 'center' },
+  arroba: { ...tema.tipo.titulo, color: tema.color.textoSuave, marginRight: tema.espacio.s, marginBottom: tema.espacio.m },
+  campoUsuario: { flex: 1 },
   boton: {
     backgroundColor: tema.color.marca,
-    paddingVertical: tema.espacio.m,
+    minHeight: tema.tactil,
+    justifyContent: 'center',
     borderRadius: tema.radio.m,
     alignItems: 'center',
   },
   botonApagado: { opacity: 0.4 },
   botonTexto: { ...tema.tipo.cuerpo, color: tema.color.fondo, fontWeight: '600' },
-  secundario: { paddingVertical: tema.espacio.m, alignItems: 'center' },
-  secundarioTexto: { ...tema.tipo.cuerpo, color: tema.color.marca },
   espera: { marginTop: tema.espacio.m },
   error: { ...tema.tipo.detalle, color: tema.color.bajo, marginTop: tema.espacio.m },
 });

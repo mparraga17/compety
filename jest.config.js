@@ -1,13 +1,20 @@
 /**
- * Tests del motor, que corren en Windows sin iPhone.
+ * Tests que corren en Windows sin iPhone.
  *
- * Solo se prueba src/motor: es JS puro sin dependencias nativas, asi que no hace falta
- * mockear HealthKit para probar la logica de puntuacion. Cuando haya que probar la capa
- * de lectura se anadira el mock de la libreria, siguiendo el patron del jest.setup.js
- * de SparkyFitness.
+ * Se prueban `src/motor` y `src/i18n`: los dos son JS puro sin dependencias nativas, asi que no
+ * hace falta mockear HealthKit. Cuando haya que probar la capa de lectura se anadira el mock de la
+ * libreria, siguiendo el patron del jest.setup.js de SparkyFitness.
+ *
+ * ⚠️ `src/i18n` se anadio despues de un crash en el iPhone: el fichero tenia un test escrito y
+ * jest **no lo estaba recogiendo**, porque el patron solo miraba `src/motor`. Un test que no corre
+ * es peor que ninguno, porque da sensacion de cobertura. Al anadir un test fuera de estas dos
+ * carpetas, ampliar este patron.
+ *
+ * `src/datos` entro despues (8 sep) por `distritos.test.ts`: el catalogo y la fusion son JS puro.
+ * Los demas ficheros de datos hablan con Supabase y no tienen tests todavia.
  */
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testMatch: ['**/src/motor/**/*.test.ts'],
+  testMatch: ['**/src/(motor|i18n|datos)/**/*.test.ts'],
 };

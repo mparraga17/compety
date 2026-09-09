@@ -1,10 +1,11 @@
 import {
+  queryCategorySamples,
   queryQuantitySamples,
   queryWorkoutSamples,
 } from '@kingstinct/react-native-healthkit';
 
 import { preparar } from './permisos';
-import type { TipoLeible } from './tipos';
+import { METRICAS_SALUD, type TipoLeible } from './tipos';
 
 /**
  * Toda lectura pasa por aqui, y toda lectura empieza con `await preparar()`.
@@ -102,4 +103,71 @@ export async function leerMetrica(tipo: TipoLeible, dias = 90) {
     filter: { date: { startDate: desde } },
     ascending: true,
   });
+}
+
+/**
+ * Las seis metricas de la pestana Salud, de una vez.
+ *
+ * ⚠️ Cada una se lee por separado y con `Promise.all`, no en serie: son seis consultas y en
+ * secuencia se notaria. El limite de la API es de 300 peticiones por minuto, asi que seis en
+ * paralelo no es problema.
+ *
+ * ⚠️ Si una metrica falla o no esta autorizada devuelve lista vacia en vez de tumbar la pantalla.
+ * Es importante aqui mas que en ningun otro sitio: se sabe que el HRV NO llega de Fitbit, asi que
+ * el caso de "esta metrica no existe para ti" es el normal y no la excepcion.
+ *
+ * 📌 Y iOS no permite distinguir "sin permiso" de "sin datos", asi que la pantalla nunca puede
+ * afirmar que no tienes datos. Solo que no le llegan.
+ */
+export async function leerMetricasSalud(dias = 90) {
+  await preparar();
+
+  const pares = await Promise.all(
+    METRICAS_SALUD.map(async (m) => {
+      try {
+        const muestras = await leerMetrica(m.tipo, dias);
+        return [
+          m.clave,
+          muestras.map((x) => ({ inicio: new Date(x.startDate).getTime(), valor: x.quantity })),
+        ] as const;
+      } catch {
+        return [m.clave, []] as const;
+      }
+    }),
+  );
+
+  return Object.fromEntries(pares) as Record<
+    (typeof METRICAS_SALUD)[number]['clave'],
+    readonly { inicio: number; valor: number }[]
+  >;
+}
+
+/**
+ * Tramos de sueño de los ultimos N dias.
+ *
+ * ⚠️ HealthKit NO devuelve una sesion por noche. Devuelve una muestra de categoria por cada
+ * tramo, con su valor (en cama, despierto, ligero, profundo, REM), asi que una noche son
+ * decenas de muestras. Agruparlas en periodos es trabajo del motor, en `motor/sueno.ts`.
+ *
+ * Se normaliza aqui a un tipo propio para que el motor no dependa de la forma de la libreria
+ * y se pueda probar entero en Windows sin HealthKit.
+ */
+export async function leerSueno(dias = 30) {
+  await preparar();
+
+  const desde = new Date();
+  desde.setDate(desde.getDate() - dias);
+
+  const muestras = await queryCategorySamples('HKCategoryTypeIdentifierSleepAnalysis', {
+    limit: 0,
+    filter: { date: { startDate: desde } },
+    ascending: true,
+  });
+
+  return muestras.map((m) => ({
+    inicio: new Date(m.startDate).getTime(),
+    fin: new Date(m.endDate).getTime(),
+    valor: m.value as number,
+    fuente: m.sourceRevision?.source?.name,
+  }));
 }

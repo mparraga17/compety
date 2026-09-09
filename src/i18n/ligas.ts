@@ -73,10 +73,35 @@ export function inicialPersona(nombre: string | null, esYo: boolean, idioma: Idi
   return texto.slice(0, 1).toUpperCase();
 }
 
-/** Ordinal correcto en cada idioma: 3º en español, 3rd en inglés. */
+/**
+ * Ordinal correcto en cada idioma: 3º en español, 3rd en inglés.
+ *
+ * ⛔ NO usar `Intl.PluralRules`. Reventó la app en el iPhone con *"undefined cannot be used as a
+ * constructor"*, porque **Hermes no lo implementa**. La
+ * [doc oficial de Hermes](https://github.com/facebook/hermes/blob/main/doc/IntlAPIs.md) lista lo
+ * que sí soporta (`Collator`, `NumberFormat`, `DateTimeFormat`, `getCanonicalLocales`) y
+ * `PluralRules` no está. Y no salta en `tsc`, porque los tipos de TypeScript describen la norma
+ * ECMA-402, no lo que el motor trae de verdad.
+ *
+ * 📌 Regla para este proyecto: **nada de `Intl` en código que corra en el teléfono.** Los tests de
+ * Node pasan igual porque Node sí lo tiene, así que un test verde tampoco te salva. Las reglas de
+ * ordinales en inglés son cuatro y caben aquí.
+ */
 export function ordinal(n: number, idioma: Idioma): string {
   if (idioma === 'es') return `${n}º`;
-  const reglas = new Intl.PluralRules('en', { type: 'ordinal' });
-  const sufijos: Record<string, string> = { one: 'st', two: 'nd', few: 'rd', other: 'th' };
-  return `${n}${sufijos[reglas.select(n)] ?? 'th'}`;
+
+  // 11, 12 y 13 son la excepción: son 'th' aunque acaben en 1, 2 y 3.
+  const dosUltimos = n % 100;
+  if (dosUltimos >= 11 && dosUltimos <= 13) return `${n}th`;
+
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
 }

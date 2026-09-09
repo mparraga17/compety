@@ -1,6 +1,6 @@
 import { tipoDe } from './actividades';
 import { baseDeCarga, puntuaCarga, type Base } from './base';
-import { resuelveCarga, type Carga } from './cargaSinFc';
+import { resuelveCarga, type Carga, type Paso } from './cargaSinFc';
 import { ligaDe, type IdLiga } from './ligas';
 import type { SesionFusionada } from './fusion';
 import { esValida, type SesionPuntuada } from './ranking';
@@ -15,6 +15,9 @@ import { calculaZonas, type Zonas } from './zonas';
  * sobre la marcha daria z sin sentido en las primeras sesiones.
  */
 
+/** Los pasos de la carga, mas el paso final que compara con tu base personal. */
+export type PasoSesion = Paso | { clave: 'contraTuBase'; datos: Record<string, number> };
+
 export type Sesion = SesionPuntuada & {
   fin: number;
   fuentes: readonly string[];
@@ -26,8 +29,11 @@ export type Sesion = SesionPuntuada & {
   metros: number | null;
   kcal: number | null;
   origen: Carga['origen'];
-  /** Pasos del desglose explicable, cada uno en lenguaje llano. */
-  pasos: readonly string[];
+  /**
+   * Pasos del desglose explicable. Cada uno lleva su clave y sus cifras, nunca la frase hecha,
+   * para que se pueda mostrar en cualquier idioma.
+   */
+  pasos: readonly PasoSesion[];
   aproximado: boolean;
   /** Ids originales antes de fusionar. Evita notificar dos veces la misma sesion. */
   ids: readonly string[];
@@ -109,7 +115,12 @@ export function procesa(
       metros: entrada.metros ?? null,
       kcal: entrada.kcal ?? null,
       origen: carga!.origen,
-      pasos: [...carga!.pasos, p.formula],
+      // El paso final es la comparacion con tu base. Va como un paso mas del desglose, con sus
+      // cifras y sin texto: la frase la arma la interfaz en el idioma que toque.
+      pasos: [
+        ...carga!.pasos,
+        { clave: 'contraTuBase' as const, datos: p.datos ?? {} },
+      ],
       aproximado: carga!.aproximado === true,
     };
   });

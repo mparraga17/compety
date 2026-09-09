@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import type { Carga } from '../motor/cargaSinFc';
+import { Pulsable } from './Pulsable';
+
+import type { OrigenCarga } from '../motor/cargaSinFc';
 import { textos } from '../i18n/textos';
 import { tema } from '../tema';
 
@@ -13,28 +15,34 @@ import { tema } from '../tema';
  * opacos como el mayor problema de confianza, asi que el origen de cada punto se muestra.
  */
 
+/**
+ * Solo necesita el origen, no la `Carga` entera.
+ *
+ * ⚠️ Se estrecho a proposito: pedir la `Carga` completa obligaba a reconstruir sus pasos en la
+ * pantalla que lo usa, y esos pasos ya se pintan aparte en el desglose.
+ */
 type Props = {
-  carga: Carga;
+  origen: OrigenCarga;
   onDeclararEsfuerzo: (rpe: number) => void;
 };
 
-export function CargaEstimada({ carga, onDeclararEsfuerzo }: Props) {
+export function CargaEstimada({ origen, onDeclararEsfuerzo }: Props) {
   const t = textos();
   const [rpe, setRpe] = useState<number | null>(null);
 
-  if (carga.origen === 'medida') return null;
+  if (origen === 'medida') return null;
 
   return (
     <View style={s.caja}>
       <Text style={s.titulo}>{t.cargaEstimada}</Text>
       <Text style={s.cuerpo}>{t.cargaEstimadaCuerpo}</Text>
 
-      {carga.origen === 'estimada' && (
+      {origen === 'estimada' && (
         <View style={s.esfuerzo}>
           <Text style={s.pregunta}>{t.comoDeDura}</Text>
           <View style={s.escala}>
             {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <Pressable
+              <Pulsable
                 key={n}
                 onPress={() => setRpe(n)}
                 style={[s.grado, rpe === n && s.gradoElegido]}
@@ -42,7 +50,7 @@ export function CargaEstimada({ carga, onDeclararEsfuerzo }: Props) {
                 accessibilityLabel={`${n} de 10`}
               >
                 <Text style={[s.gradoTexto, rpe === n && s.gradoTextoElegido]}>{n}</Text>
-              </Pressable>
+              </Pulsable>
             ))}
           </View>
           <View style={s.extremos}>
@@ -51,13 +59,13 @@ export function CargaEstimada({ carga, onDeclararEsfuerzo }: Props) {
           </View>
 
           {rpe !== null && (
-            <Pressable
+            <Pulsable
               style={s.boton}
               onPress={() => onDeclararEsfuerzo(rpe)}
               accessibilityRole="button"
             >
               <Text style={s.botonTexto}>{t.guardarEsfuerzo}</Text>
-            </Pressable>
+            </Pulsable>
           )}
         </View>
       )}
@@ -66,12 +74,12 @@ export function CargaEstimada({ carga, onDeclararEsfuerzo }: Props) {
 }
 
 /** Etiqueta de origen para mostrar junto a cada puntuacion. */
-export function EtiquetaOrigen({ carga }: { carga: Carga }) {
+export function EtiquetaOrigen({ origen }: { origen: OrigenCarga }) {
   const t = textos();
   const etiqueta =
-    carga.origen === 'medida'
+    origen === 'medida'
       ? t.origenMedida
-      : carga.origen === 'declarada'
+      : origen === 'declarada'
         ? t.origenDeclarada
         : t.origenEstimada;
 
@@ -87,7 +95,13 @@ const s = StyleSheet.create({
   escala: { flexDirection: 'row', gap: tema.espacio.xs },
   grado: {
     flex: 1,
-    aspectRatio: 1,
+    /**
+     * ⚠️ `minHeight: 44` y NO `aspectRatio: 1`. Con el cuadrado, diez grados en el ancho de un
+     * iPhone salían de ~29 puntos de lado, por debajo de los 44 que pide la guía de Apple. Es
+     * la misma regla que ya se aplicó a los botones de Amigos. El grado queda más alto que
+     * ancho, y no pasa nada: el objetivo táctil manda sobre la forma.
+     */
+    minHeight: tema.tactil,
     borderRadius: tema.radio.s,
     backgroundColor: '#1d1f26',
     alignItems: 'center',

@@ -1,3 +1,5 @@
+import type { ClaveMetrica } from '../motor/salud';
+
 /**
  * Fuente unica de verdad de lo que Compety lee de HealthKit.
  *
@@ -38,12 +40,18 @@ export type TipoLeible = (typeof TIPOS_A_LEER)[number];
  */
 export const TIPOS_A_ESCRIBIR = [] as const;
 
-/** Metricas de la pestana Salud, con su direccion de mejora. */
+/**
+ * Metricas de la pestana Salud, con el tipo de HealthKit del que sale cada una.
+ *
+ * ⚠️ `clave` tiene que coincidir con `ClaveMetrica` de `motor/salud.ts`, donde vive el resto de
+ * la definicion (direccion de mejora, decimales y ficha cientifica). El tipo `satisfies` de abajo
+ * lo comprueba en compilacion, asi que renombrar una clave en un sitio y no en el otro no compila.
+ */
 export const METRICAS_SALUD = [
-  { tipo: 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN', clave: 'hrv', mejorSubir: true },
-  { tipo: 'HKQuantityTypeIdentifierRestingHeartRate', clave: 'fcReposo', mejorSubir: false },
-  { tipo: 'HKQuantityTypeIdentifierOxygenSaturation', clave: 'spo2', mejorSubir: true },
-  { tipo: 'HKQuantityTypeIdentifierRespiratoryRate', clave: 'respiracion', mejorSubir: false },
-  { tipo: 'HKQuantityTypeIdentifierVO2Max', clave: 'vo2max', mejorSubir: true },
-  { tipo: 'HKQuantityTypeIdentifierStepCount', clave: 'pasos', mejorSubir: true },
-] as const satisfies readonly { tipo: TipoLeible; clave: string; mejorSubir: boolean }[];
+  { tipo: 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN', clave: 'hrv' },
+  { tipo: 'HKQuantityTypeIdentifierRestingHeartRate', clave: 'fcReposo' },
+  { tipo: 'HKQuantityTypeIdentifierOxygenSaturation', clave: 'spo2' },
+  { tipo: 'HKQuantityTypeIdentifierRespiratoryRate', clave: 'respiracion' },
+  { tipo: 'HKQuantityTypeIdentifierVO2Max', clave: 'vo2max' },
+  { tipo: 'HKQuantityTypeIdentifierStepCount', clave: 'pasos' },
+] as const satisfies readonly { tipo: TipoLeible; clave: ClaveMetrica }[];

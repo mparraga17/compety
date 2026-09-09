@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+
+import { Pulsable } from '../componentes/Pulsable';
 
 import { hayHealthKit, preparar } from '../salud/permisos';
 import { textos } from '../i18n/textos';
@@ -64,7 +65,7 @@ export function Bienvenida({ onListo, onSaltar }: Props) {
       {!disponible && <Text style={s.aviso}>{t.sinHealthKit}</Text>}
       {error !== null && <Text style={s.aviso}>{error}</Text>}
 
-      <Pressable
+      <Pulsable
         style={[s.boton, (!disponible || pidiendo) && s.botonInactivo]}
         onPress={pedir}
         disabled={!disponible || pidiendo}
@@ -76,11 +77,11 @@ export function Bienvenida({ onListo, onSaltar }: Props) {
         ) : (
           <Text style={s.botonTexto}>{t.continuar}</Text>
         )}
-      </Pressable>
+      </Pulsable>
 
-      <Pressable onPress={onSaltar} accessibilityRole="button">
+      <Pulsable onPress={onSaltar} accessibilityRole="button">
         <Text style={s.saltar}>{t.masTarde}</Text>
-      </Pressable>
+      </Pulsable>
     </ScrollView>
   );
 }
@@ -96,8 +97,14 @@ function Punto({ titulo, detalle }: { titulo: string; detalle: string }) {
 
 const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: tema.color.fondo },
-  contenido: { padding: tema.espacio.l, paddingTop: tema.espacio.xl * 2, gap: tema.espacio.m },
-  titulo: { ...tema.tipo.titulo, color: tema.color.texto },
+  contenido: {
+    padding: tema.espacio.l,
+    paddingTop: tema.seguroArriba + tema.espacio.m,
+    gap: tema.espacio.m,
+  },
+  // ⭐ Título de PANTALLA, 22px. El de 15px tenue es para etiquetas encima de una cifra, y
+  // aquí no hay cifra: con 15px la pantalla de bienvenida abría sin ancla para el ojo.
+  titulo: { ...tema.tipo.tituloPantalla, color: tema.color.texto },
   entrada: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, lineHeight: 22 },
   seccion: {
     ...tema.tipo.seccion,
@@ -113,7 +120,8 @@ const s = StyleSheet.create({
   boton: {
     backgroundColor: tema.color.marca,
     borderRadius: tema.radio.m,
-    paddingVertical: tema.espacio.m,
+    minHeight: tema.tactil,
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: tema.espacio.m,
   },
@@ -124,5 +132,6 @@ const s = StyleSheet.create({
     color: tema.color.textoSuave,
     textAlign: 'center',
     paddingVertical: tema.espacio.m,
+    minHeight: tema.tactil,
   },
 });

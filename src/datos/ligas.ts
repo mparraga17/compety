@@ -16,6 +16,27 @@ export type LigaRemota = {
   deporte: string | null;
   codigo: string;
   miembros: number;
+  /** Solo en ligas públicas de zona (ciudad o distrito). Las privadas van con null. */
+  zona: ZonaDeLiga | null;
+};
+
+/** Datos de zona de una liga pública. `division` 1 es la de arriba. */
+export type ZonaDeLiga = {
+  ciudad: string;
+  distrito: string | null;
+  division: number;
+  /** Cuántas divisiones tiene la zona, para saber si hay descenso posible. */
+  divisiones: number;
+};
+
+/** Un ascenso o descenso propio de la última jornada cerrada. */
+export type Movimiento = {
+  ciudad: string;
+  distrito: string | null;
+  /** Lunes de la semana que se cerró. */
+  semana: string;
+  de: number;
+  a: number;
 };
 
 export type Puesto = {
@@ -53,15 +74,124 @@ export async function misLigas(): Promise<readonly LigaRemota[]> {
 
   const { data, error } = await supabase
     .from('ligas')
-    .select('id, nombre, deporte, codigo, miembros(count)');
+    .select('id, nombre, deporte, codigo, division, miembros(count), zonas(ciudad, distrito, divisiones)');
   if (error) throw error;
 
-  return (data ?? []).map((l) => ({
-    id: l.id as string,
-    nombre: l.nombre as string,
-    deporte: (l.deporte as string | null) ?? null,
-    codigo: l.codigo as string,
-    miembros: (l.miembros as { count: number }[] | null)?.[0]?.count ?? 1,
+  return (data ?? []).map((l) => {
+    // El join de zonas llega como objeto o como array según la versión de PostgREST.
+    const cruda = l.zonas as
+      | { ciudad: string; distrito: string | null; divisiones: number }
+      | { ciudad: string; distrito: string | null; divisiones: number }[]
+      | null;
+    const z = Array.isArray(cruda) ? (cruda[0] ?? null) : cruda;
+
+    return {
+      id: l.id as string,
+      nombre: l.nombre as string,
+      deporte: (l.deporte as string | null) ?? null,
+      codigo: l.codigo as string,
+      miembros: (l.miembros as { count: number }[] | null)?.[0]?.count ?? 1,
+      zona:
+        z === null || l.division === null
+          ? null
+          : {
+              ciudad: z.ciudad,
+              distrito: z.distrito,
+              division: l.division as number,
+              divisiones: z.divisiones,
+            },
+    };
+  });
+}
+
+/**
+ * Entrar en las ligas públicas de tu zona: la de la ciudad y, si lo das, la del distrito.
+ *
+ * ⭐ La zona la CONFIRMA la persona. El GPS existe solo como atajo que rellena los campos
+ * (decisión del usuario, 8 sep): la coordenada se convierte en nombres en el teléfono y se
+ * tira, aquí llegan solo los nombres. `docs/privacy-es.html` sección 6 documenta el detalle.
+ *
+ * El servidor te coloca en la división que toca: se entra por la más baja, y al llenarse la
+ * cohorte de 30 se estrena una nueva por debajo. Cambiar de zona te saca de la anterior.
+ */
+export async function unirseAZona(ciudad: string, distrito: string | null): Promise<void> {
+  if (!HAY_SERVIDOR) sinServidor();
+
+  const { error } = await supabase.rpc('unirse_a_zona', {
+    p_ciudad: ciudad.trim(),
+    p_distrito: distrito === null || distrito.trim() === '' ? null : distrito.trim(),
+  });
+  if (error) throw error;
+}
+
+/**
+ * Distritos con liga viva en una ciudad, leídos de `zonas` (visible con sesión, a propósito:
+ * solo contiene nombres de lugar). Alimenta el desplegable junto al catálogo curado: una
+ * liga con gente dentro vale más que un nombre oficial vacío.
+ *
+ * `ilike` cubre mayúsculas pero no acentos; el cruce fino por clave normalizada lo hace
+ * `fusionaDistritos` en el teléfono.
+ */
+export async function distritosVivos(ciudad: string): Promise<readonly string[]> {
+  if (!HAY_SERVIDOR) return [];
+
+  const { data, error } = await supabase
+    .from('zonas')
+    .select('distrito')
+    .ilike('ciudad', ciudad.trim())
+    .not('distrito', 'is', null);
+  if (error) throw error;
+
+  return (data ?? []).map((z) => z.distrito as string);
+}
+
+/**
+ * Ciudades con liga viva, para el buscador de ciudad. Misma fuente y mismo criterio que
+ * `distritosVivos`: la tabla `zonas` solo contiene nombres de lugar y es legible con
+ * sesión a propósito. El duplicado exacto se quita aquí; el fino (acentos, mayúsculas) lo
+ * absorbe `fusionaCiudades` por clave normalizada en el teléfono.
+ */
+export async function ciudadesVivas(): Promise<readonly string[]> {
+  if (!HAY_SERVIDOR) return [];
+
+  const { data, error } = await supabase.from('zonas').select('ciudad');
+  if (error) throw error;
+
+  return [...new Set((data ?? []).map((z) => z.ciudad as string))];
+}
+
+/** Salirse de las ligas de zona. Las privadas no se tocan. */
+export async function salirDeZona(): Promise<void> {
+  if (!HAY_SERVIDOR) return;
+  const { error } = await supabase.rpc('salir_de_zona');
+  if (error) throw error;
+}
+
+/**
+ * Cierra la jornada semanal de tus zonas y devuelve TUS ascensos y descensos.
+ *
+ * Idempotente: la jornada lleva candado en el servidor (`cierres_zona`), así que da igual
+ * cuántos miembros la disparen ni cuántas veces. Se llama al sincronizar, como
+ * `cerrarPeriodos`.
+ */
+export async function aplicarMovimientos(hoy = periodoDe()): Promise<readonly Movimiento[]> {
+  if (!HAY_SERVIDOR) return [];
+
+  const { data, error } = await supabase.rpc('aplicar_movimientos', { p_hoy: hoy });
+  if (error) throw error;
+
+  return ((data ?? []) as {
+    mov_ciudad: string;
+    mov_distrito: string | null;
+    mov_semana: string;
+    mov_de: number;
+    mov_a: number;
+  }[]).map((m) => ({
+    ciudad: m.mov_ciudad,
+    distrito: m.mov_distrito,
+    semana: m.mov_semana,
+    de: m.mov_de,
+    a: m.mov_a,
   }));
 }
 
@@ -75,7 +205,12 @@ export async function crearLiga(
     .rpc('crear_liga', { p_nombre: nombre, p_deporte: deporte })
     .single();
   if (error) throw error;
-  return data as { id: string; codigo: string };
+
+  // ⚠️ El RPC devuelve `liga_id` y `liga_codigo`, no `id` y `codigo`. Se renombraron en la
+  // migracion 03 porque los nombres cortos chocaban con las columnas de la tabla `ligas` dentro
+  // de la funcion y Postgres daba 42702 «column reference is ambiguous» al crear una liga.
+  const fila = data as { liga_id: string; liga_codigo: string };
+  return { id: fila.liga_id, codigo: fila.liga_codigo };
 }
 
 /** Entrar con el codigo de seis caracteres que te pasan. */
@@ -187,6 +322,68 @@ export async function anotarAviso(entrada: {
     p_huella: entrada.huella,
   });
   if (error) throw error;
+}
+
+/** Un puesto de un periodo ya cerrado. `puesto` 1 es el ganador del tramo. */
+export type PuestoCerrado = {
+  /** Primer día del tramo: lunes, día 1 del mes o 1 de enero. */
+  inicio: string;
+  usuario: string;
+  nombre: string;
+  puntos: number;
+  sesiones: number;
+  puesto: number;
+};
+
+/** Horizontes que tienen cierre. Los móviles (d7, d30) no cierran: son ventanas de consulta. */
+export type IdCierre = 'wtd' | 'mtd' | 'ytd';
+
+/**
+ * ⭐ Resultados FINALES de los periodos ya terminados: las jornadas de la liga.
+ *
+ * Existe porque la competición no terminaba nunca. La ventana por defecto es móvil y no se
+ * cierra jamás, y aunque el servidor congelaba filas, ningún sitio mostraba un RESULTADO. Una
+ * liga sin jornadas es una clasificación que fluctúa para siempre: nadie gana y nadie vuelve
+ * el lunes a ver quién ganó. El ciclo semana→resultado→semana es lo que hace liga a una liga,
+ * y es el mecanismo del modelo Duolingo que cita el análisis de producto.
+ *
+ * Semana, mes y año (decisión del usuario, 7 sep): la semana da el ritmo, el mes la
+ * tendencia y el año la historia.
+ */
+export async function palmares(
+  liga: string,
+  horizonte: IdCierre,
+): Promise<readonly PuestoCerrado[]> {
+  if (!HAY_SERVIDOR) return [];
+
+  const { data, error } = await supabase.rpc('palmares', {
+    p_liga: liga,
+    p_horizonte: horizonte,
+    p_hoy: periodoDe(),
+  });
+  if (error) throw error;
+  return (data ?? []) as PuestoCerrado[];
+}
+
+/**
+ * Ranking anual de semanas ganadas: la clasificación de la temporada.
+ *
+ * Es la pieza del cierre de año que pidió el usuario, y mide lo correcto: la historia del
+ * año no es quién sumó más puntos en diciembre, es quién ganó más jornadas.
+ */
+export async function semanasGanadas(
+  liga: string,
+  anio: number = new Date().getFullYear(),
+): Promise<readonly { usuario: string; nombre: string; ganadas: number }[]> {
+  if (!HAY_SERVIDOR) return [];
+
+  const { data, error } = await supabase.rpc('semanas_ganadas', {
+    p_liga: liga,
+    p_anio: anio,
+    p_hoy: periodoDe(),
+  });
+  if (error) throw error;
+  return (data ?? []) as { usuario: string; nombre: string; ganadas: number }[];
 }
 
 /** Apagar o encender los avisos de una liga concreta. Requisito de autonomia. */

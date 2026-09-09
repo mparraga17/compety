@@ -18,8 +18,16 @@ export const CLAVES = {
   anchor: (tipo: string) => `anchor:${tipo}`,
   /** Esfuerzo declarado de una sesion. */
   esfuerzo: (idSesion: string) => `rpe:${idSesion}`,
+  /** Deporte corregido a mano de una sesion. */
+  deporte: (idSesion: string) => `deporte:${idSesion}`,
   /** Ultimo maximo de referencia calculado, para no releer 90 dias en cada arranque. */
   maximo: 'maximo',
+  /**
+   * Celebracion ya mostrada. La clave lleva el momento y su periodo (`oms:2026-09-07`), asi
+   * cada logro se celebra UNA vez: una celebracion que reaparece cada vez que abres la app
+   * deja de significar nada, que es lo contrario de lo que existe para hacer.
+   */
+  celebracion: (momento: string) => `celebrado:${momento}`,
 } as const;
 
 /** Implementacion en memoria. Para tests y para el primer arranque antes del rebuild. */
@@ -114,6 +122,36 @@ export async function leeEsfuerzos(
   return Object.fromEntries(pares.filter(([, v]) => v !== null) as [string, number][]);
 }
 
+/**
+ * Deporte corregido a mano de una sesion.
+ *
+ * ⭐ Existe porque Fitbit escribe algunas sesiones en Apple Health como "otro" (codigo 3000)
+ * aunque en su app tengan deporte: medido con las pesas del usuario el 8 sep. El dato llega
+ * roto de origen, asi que se corrige aqui y la correccion sobrevive a cada relectura de
+ * HealthKit. Mismo patron que el esfuerzo declarado: clave por id de la sesion fusionada.
+ *
+ * El valor se guarda tal cual y se valida al APLICAR (`esTipoDeporte` en sincroniza): asi un
+ * valor viejo de una version futura no revienta esta, simplemente se ignora.
+ */
+export async function guardaDeporte(
+  almacen: Almacen,
+  idSesion: string,
+  tipo: string,
+): Promise<void> {
+  await almacen.guardar(CLAVES.deporte(idSesion), tipo);
+}
+
+/** Deportes corregidos de varias sesiones de una vez. Solo devuelve los que existen. */
+export async function leeDeportes(
+  almacen: Almacen,
+  ids: readonly string[],
+): Promise<Record<string, string>> {
+  const pares = await Promise.all(
+    ids.map(async (id) => [id, await almacen.leer(CLAVES.deporte(id))] as const),
+  );
+  return Object.fromEntries(pares.filter(([, v]) => v !== null) as [string, string][]);
+}
+
 export type MaximoGuardado = {
   valor: number;
   provisional: boolean;
@@ -141,4 +179,13 @@ export async function guardaMaximo(
     CLAVES.maximo,
     JSON.stringify({ ...maximo, calculado: Date.now() } satisfies MaximoGuardado),
   );
+}
+
+/** ¿Se celebró ya este momento? El id lleva el periodo dentro (`oms:2026-09-07`). */
+export async function yaCelebrado(almacen: Almacen, momento: string): Promise<boolean> {
+  return (await almacen.leer(CLAVES.celebracion(momento))) !== null;
+}
+
+export async function marcaCelebrado(almacen: Almacen, momento: string): Promise<void> {
+  await almacen.guardar(CLAVES.celebracion(momento), '1');
 }

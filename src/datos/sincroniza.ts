@@ -1,22 +1,24 @@
 import { almacenNativo } from './almacenNativo';
 import {
   anotarAviso,
+  aplicarMovimientos,
   cerrarPeriodos,
   misLigas,
   periodoDe,
   subirPuntuacion,
   tonoDe,
   type LigaRemota,
+  type Movimiento,
 } from './ligas';
 import { HAY_SERVIDOR } from './supabase';
-import { leeEsfuerzos, leeMaximo, guardaMaximo } from './almacen';
+import { leeDeportes, leeEsfuerzos, leeMaximo, guardaMaximo } from './almacen';
 import { deduplica, type SesionCruda } from '../motor/fusion';
 import { zDe } from '../motor/base';
 import { HORIZONTES, rankeaVentana, enVentana } from '../motor/ranking';
 import { procesa, type Resultado } from '../motor/sesiones';
 import { maximoDeReferencia } from '../motor/zonas';
 import { leerPulsosDeSesion, leerPulsosEntre, leerSesiones } from '../salud/lectura';
-import { tipoDe } from '../motor/actividades';
+import { esTipoDeporte, tipoDe } from '../motor/actividades';
 
 /**
  * Sincronizacion. Es la unica pieza que habla con HealthKit y con el servidor a la vez, y por
@@ -78,11 +80,24 @@ export async function calcula(dias = 30): Promise<Resultado> {
   // Deduplicar es requisito del dia uno: Nike, Strava, Peloton y la pulsera escriben a la vez.
   const fusionadas = deduplica(crudas);
 
-  // El esfuerzo declarado lo genera la app y no existe en HealthKit.
-  const esfuerzos = await leeEsfuerzos(almacen, fusionadas.map((s) => s.id));
+  // El esfuerzo declarado y el deporte corregido los genera la app y no existen en HealthKit.
+  const [esfuerzos, deportes] = await Promise.all([
+    leeEsfuerzos(almacen, fusionadas.map((s) => s.id)),
+    leeDeportes(almacen, fusionadas.map((s) => s.id)),
+  ]);
 
   return procesa(
-    fusionadas.map((s) => ({ ...s, rpe: esfuerzos[s.id] ?? null })),
+    fusionadas.map((s) => {
+      // ⭐ La correccion de deporte va ANTES de puntuar: asi el peso MET, el descuento sin
+      // pulso y la liga salen del deporte real, no del "otro" que escribio Fitbit. Un valor
+      // desconocido en el almacen se ignora, no se rompe nada.
+      const corregido = deportes[s.id];
+      return {
+        ...s,
+        tipo: esTipoDeporte(corregido) ? corregido : s.tipo,
+        rpe: esfuerzos[s.id] ?? null,
+      };
+    }),
     maximo.valor,
   );
 }
@@ -91,6 +106,8 @@ export type Sincronizacion = {
   ligas: readonly LigaRemota[];
   subidas: number;
   avisos: number;
+  /** Tus ascensos y descensos de la jornada que se acaba de cerrar, si los hay. */
+  movimientos: readonly Movimiento[];
   /** true si no hay servidor configurado. La app sigue siendo util en solitario. */
   soloLocal: boolean;
 };
@@ -106,12 +123,18 @@ export async function sincroniza(): Promise<Sincronizacion> {
   const resultado = await calcula(30);
 
   if (!HAY_SERVIDOR) {
-    return { ligas: [], subidas: 0, avisos: 0, soloLocal: true };
+    return { ligas: [], subidas: 0, avisos: 0, movimientos: [], soloLocal: true };
   }
 
   // Primero se cierran los periodos pasados, antes de escribir nada. Asi una semana terminada
   // queda congelada con la puntuacion que tuvo, y no se reescribe con la base personal de hoy.
   await cerrarPeriodos().catch(() => 0);
+
+  // ⭐ Y la jornada de las ligas de zona: quien sube y quien baja. Va ANTES de leer las ligas,
+  // porque un ascenso te cambia de division y hay que puntuar ya en la nueva. Idempotente por
+  // el candado del servidor, y si falla no bloquea la sincronizacion: la jornada la cerrara
+  // el siguiente miembro que abra la app.
+  const movimientos = await aplicarMovimientos().catch(() => [] as readonly Movimiento[]);
 
   const ligas = await misLigas();
   let subidas = 0;
@@ -166,7 +189,7 @@ export async function sincroniza(): Promise<Sincronizacion> {
     }
   }
 
-  return { ligas, subidas, avisos, soloLocal: false };
+  return { ligas, subidas, avisos, movimientos, soloLocal: false };
 }
 
 /** Periodo actual, para que la interfaz pida la clasificacion correcta. */

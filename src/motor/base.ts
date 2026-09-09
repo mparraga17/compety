@@ -1,4 +1,4 @@
-import { CIENCIA } from './ciencia';
+import type { ClaveCiencia } from './ciencia';
 
 /**
  * Base personal: el handicap del producto.
@@ -67,8 +67,13 @@ export function zDe(carga: number, base: Base): number {
 export type Puntuacion = {
   puntos: number;
   z: number;
-  /** Paso del desglose que ve el usuario. */
-  formula: string;
+  /**
+   * Cifras del paso final del desglose, sin texto.
+   *
+   * ⛔ Antes era una `formula: string` en espanol, y con la app en ingles salia en espanol. Un
+   * dato nunca lleva texto traducible dentro: la frase la arma la interfaz.
+   */
+  datos: { media: number; carga: number; z: number } | null;
   ciencia: 'basePropia';
 };
 
@@ -86,10 +91,8 @@ export function puntuaCarga(carga: number, base: Base): Puntuacion {
   return {
     puntos,
     z,
-    formula:
-      base.sigma > 0
-        ? `tu media es ${base.media}, esta sesión ${carga}, o sea ${z >= 0 ? '+' : ''}${z}σ`
-        : `todavía no hay historial para comparar, así que se queda en tu media`,
+    // null cuando todavia no hay historial: la interfaz dice que se queda en tu media.
+    datos: base.sigma > 0 ? { media: base.media, carga, z } : null,
     ciencia: 'basePropia',
   };
 }
@@ -103,4 +106,5 @@ export function bandaHabitual(base: Base): { min: number; max: number } | null {
   };
 }
 
-export const FUENTE_BASE = CIENCIA.basePropia;
+/** Ficha que sostiene el handicap. La interfaz la resuelve con `fichaDe` en su idioma. */
+export const FUENTE_BASE: ClaveCiencia = 'basePropia';

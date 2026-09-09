@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SinDatos } from '../componentes/SinDatos';
+import { mensajeDe } from '../datos/errores';
 import { nombreDe } from '../motor/actividades';
 import { diagnostica, type Diagnostico as Datos, type Veredicto } from '../salud/granularidad';
 import { nombreCorto, sondea, type Sonda } from '../salud/sonda';
@@ -36,7 +37,7 @@ export function Diagnostico() {
   useEffect(() => {
     diagnostica(30)
       .then(setDatos)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(mensajeDe(e)));
     sondea(30).then(setSondas).catch(() => setSondas([]));
   }, []);
 
@@ -168,7 +169,9 @@ export function Diagnostico() {
 const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: tema.color.fondo },
   centro: { alignItems: 'center', justifyContent: 'center', gap: tema.espacio.m },
-  contenido: { padding: tema.espacio.l, paddingTop: tema.espacio.xl * 2, gap: tema.espacio.s },
+  // ⚠️ Sin el doble hueco de antes: la pantalla vive ahora dentro de una hoja `pageSheet` y el
+  // botón de volver de App.tsx ya pone la cabecera. El paddingTop grande dejaba un vacío doble.
+  contenido: { padding: tema.espacio.l, paddingTop: tema.espacio.s, gap: tema.espacio.s },
   cargando: { ...tema.tipo.detalle, color: tema.color.textoSuave },
   titulo: { ...tema.tipo.titulo, color: tema.color.texto },
   error: { ...tema.tipo.detalle, color: tema.color.bajo, lineHeight: 19 },

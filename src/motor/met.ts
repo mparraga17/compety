@@ -27,6 +27,20 @@ export const MET = {
   BIKING: 7.5,
   PADDLEBOARDING: 6.0,
   SPORT: 5.0,
+  /*
+   * ⭐ Ampliación del 8 sep, del análisis de qué escriben Garmin, Whoop y Apple Watch en
+   * HealthKit: son los deportes frecuentes que caían en "Actividad N" o en el cajón SPORT.
+   * Valores del Compendium para la variante "general/moderada" de cada uno. Ninguno tiene
+   * INTENSIDAD_TIPICA medida, así que su factor de modalidad es 1 POR DISEÑO (la regla del
+   * segundo bug del factor): el MET solo pesa en la estimación sin pulso.
+   */
+  SOCCER: 7.0, // casual, general
+  BASKETBALL: 6.5, // general
+  ROWING: 7.0, // máquina, ~100 W, moderado
+  CLIMBING: 7.5, // roca, ascenso
+  MARTIAL_ARTS: 7.8, // contacto; la referencia media es el sparring de boxeo
+  SKIING: 5.3, // descenso, esfuerzo general (el de fondo trabaja más; corregible por sesión)
+  SKATING: 7.0, // patinaje general
 } as const;
 
 export type TipoDeporte = keyof typeof MET;

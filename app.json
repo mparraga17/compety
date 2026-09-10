@@ -38,7 +38,7 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "Compety lee tus entrenos y tu frecuencia cardiaca para calcular la carga de cada sesion y tu puntuacion en las ligas con tus amigos. El calculo se hace en tu iPhone: al servidor solo viaja la puntuacion.",
-          "NSHealthUpdateUsageDescription": false,
+          "NSHealthUpdateUsageDescription": "Compety no escribe ni modifica ningun dato en la app Salud. Solo lee tus entrenos para puntuar tus ligas.",
           "background": true
         }
       ],

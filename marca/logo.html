@@ -2,113 +2,184 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compety · exploración de logo</title>
 <style>
-  /* Página de trabajo del logo. Fondo igual que la app para juzgar en contexto real. */
-  body { background:#14151a; color:#e6ece9; font-family:system-ui; margin:0; padding:40px; }
-  h1 { font-size:15px; font-weight:600; color:rgba(230,236,233,.62); }
-  p  { font-size:13px; color:rgba(230,236,233,.52); max-width:640px; line-height:1.5; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:28px; margin-top:28px; }
+  :root { color-scheme:dark; }
+  * { box-sizing:border-box; }
+  body {
+    background:#14151a;
+    color:#e6ece9;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    margin:0;
+    min-height:100vh;
+    padding:40px;
+  }
+  main { margin:0 auto; max-width:1120px; }
+  h1 { color:rgba(230,236,233,.74); font-size:15px; font-weight:650; letter-spacing:.01em; }
+  p { color:rgba(230,236,233,.52); font-size:13px; line-height:1.55; margin:8px 0; max-width:720px; }
+  strong { color:rgba(230,236,233,.76); font-weight:600; }
+  .grid {
+    display:grid;
+    gap:28px;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    margin-top:30px;
+  }
   .card { text-align:center; }
-  .card h2 { font-size:12px; font-weight:500; color:rgba(230,236,233,.62); margin:10px 0 2px; }
-  .card small { font-size:11px; color:rgba(230,236,233,.4); }
-  /* La caja del icono con el radio de iOS (22,37% del lado) para verlo como quedará. */
-  .icono { width:200px; height:200px; border-radius:45px; margin:0 auto; display:block; }
-  .fila-mini { display:flex; gap:14px; justify-content:center; align-items:flex-end; margin-top:10px; }
-  .mini-60 { width:60px; height:60px; border-radius:13px; }
-  .mini-29 { width:29px; height:29px; border-radius:6.5px; }
+  .card h2 { color:rgba(230,236,233,.68); font-size:12px; font-weight:600; margin:12px 0 3px; }
+  .card small { color:rgba(230,236,233,.4); display:block; font-size:11px; line-height:1.4; min-height:31px; }
+  .icono {
+    border:1px solid rgba(255,255,255,.045);
+    border-radius:45px;
+    display:block;
+    height:200px;
+    margin:0 auto;
+    width:200px;
+  }
+  .fila-mini { align-items:flex-end; display:flex; gap:14px; justify-content:center; margin-top:12px; }
+  .muestra { align-items:center; display:flex; flex-direction:column; gap:5px; }
+  .muestra span { color:rgba(230,236,233,.28); font-size:9px; }
+  .mini-60 { border-radius:13px; height:60px; width:60px; }
+  .mini-29 { border-radius:6.5px; height:29px; width:29px; }
+  .mini-21 { border-radius:4.7px; height:21px; width:21px; }
+  .anterior { opacity:.46; }
+  .nota {
+    border-left:2px solid rgba(198,203,240,.36);
+    color:rgba(230,236,233,.46);
+    margin-top:30px;
+    max-width:760px;
+    padding-left:12px;
+  }
+  @media (max-width:560px) {
+    body { padding:26px 18px; }
+    .grid { gap:34px; }
+  }
 </style>
 </head>
 <body>
-<h1>Compety · C + rayo</h1>
-<p>Cada variante se muestra a 200px, 60px y 29px, que es la horquilla real de un icono de iOS.
-La prueba que manda es la de 29: si ahí no se lee, la variante muere.</p>
+<main>
+  <h1>Compety · C + rayo · iteración 5</h1>
+  <p>
+    Redibujo basado en el boceto: una C <strong>caligráfica, asimétrica y abierta</strong>,
+    atravesada por un rayo largo. La prueba decisiva es ahora 21 px, el tamaño real más
+    pequeño dentro de la app.
+  </p>
 
-<!--
-  El símbolo se define UNA vez y las variantes solo cambian colores.
+  <!--
+    PROPUESTA 5
 
-  ⭐⭐ Topología del tercer sketch (8 sep): TODO es UNA línea de rotulador, del grosor de
-  la C. Leída desde la punta del rayo:
+    La silueta conserva las ideas fuertes del boceto manual:
+    · La C no es un círculo: es un óvalo irregular con más peso abajo.
+    · Los dos terminales convergen en punta; desaparece el cabo redondo inferior.
+    · El rayo cruza en diagonal de arriba-derecha a abajo-izquierda.
+    · C y rayo se solapan ampliamente para leerse como un único gesto en monocromo.
 
-  ⭐ Iteración 4 (feedback del usuario): "la integración me gusta, pero quiero un rayo
-  RAYO". El rayo deja de ser una línea que zigzaguea y pasa a ser una FORMA rellena de
-  rayo clásico (esquinas duras, dos puntas afiladas), con la topología de 6 vértices de
-  los bolt de heroicons/emoji: punta arriba, escalón con barbas, punta abajo.
+    El símbolo sigue dividido en dos contornos por utilidad: permite estudiar la unión
+    en bicolor. La versión que usa la app es monocroma y visualmente forma una silueta.
+  -->
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <defs>
+      <g id="marca" transform="translate(82 6) scale(.89 .98)">
+        <!-- C refinada: menos masa, curvas tensas y terminales de plumilla. -->
+        <path
+          d="M 621 317
+             C 711 244 747 157 683 106
+             C 594 36 435 56 302 157
+             C 159 266 119 462 181 634
+             C 247 815 405 902 566 875
+             C 699 853 793 768 845 625
+             L 758 691
+             C 699 732 637 758 568 770
+             C 456 789 354 738 307 635
+             C 256 525 281 393 365 305
+             C 441 225 543 194 613 219
+             C 651 233 655 276 621 317 Z"
+          fill="var(--c)"/>
+        <!-- Rayo afinado: una diagonal dominante y un único quiebro contenido. -->
+        <path
+          d="M 625 191
+             L 688 249
+             L 470 468
+             L 558 493
+             L 291 761
+             L 383 538
+             L 291 513 Z"
+          fill="var(--r)"/>
+      </g>
 
-    (655,212)-(735,288)  ⭐ la CABEZA: cara de 110px (el ancho del trazo de la C),
-               perpendicular a la primera diagonal y centrada en (695,250), el arranque
-               del arco. Sus dos esquinas caen EXACTAS sobre el círculo del cabo redondo
-               (a 55px del centro): el rayo llega con el mismo grosor que la línea de la
-               C y el cabo suelda el pliegue → tangencial, la misma línea que se dobla.
-    (465,545)  bajada por el borde derecho hasta el escalón
-    (585,592)  barba derecha del escalón (el jut clásico del ⚡)
-    (222,880)  punta inferior AFILADA, atravesando el anillo (93px más allá del borde)
-    (345,610)  vuelta por el borde izquierdo hasta el escalón
-    (218,560)  barba izquierda del escalón
+      <!-- Geometría anterior, conservada únicamente para comparar. -->
+      <g id="marca-anterior">
+        <path d="M 695 250 A 320 320 0 1 0 695 774"
+              fill="none" stroke="var(--c)" stroke-width="110" stroke-linecap="round"/>
+        <path d="M 655 212 L 735 288 L 465 545 L 585 592 L 222 880 L 345 610 L 218 560 Z"
+              fill="var(--r)"/>
+      </g>
+    </defs>
+  </svg>
 
-  El canal del escalón y las dos barbas son lo que lee "rayo" incluso a 29px; la punta
-  inferior afilada es lo que lo separa de la épsilon. Arriba NO hay punta: hay cara
-  ancha, porque afilarla (iteración 4) rompía la tangencia con la C.
+  <div class="grid">
+    <div class="card" style="--fondo:#14151a; --c:#c6cbf0; --r:#c6cbf0">
+      <svg class="icono" viewBox="0 0 1024 1024" role="img" aria-label="Nueva propuesta del logo de Compety">
+        <rect width="1024" height="1024" fill="var(--fondo)"/>
+        <use href="#marca"/>
+      </svg>
+      <h2>A · Gesto del boceto · PROPUESTA</h2>
+      <small>Más orgánica, inclinada y con dos remates afilados</small>
+      <div class="fila-mini" aria-hidden="true">
+        <div class="muestra"><svg class="mini-60" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>60</span></div>
+        <div class="muestra"><svg class="mini-29" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>29</span></div>
+        <div class="muestra"><svg class="mini-21" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>21</span></div>
+      </div>
+    </div>
 
-  Sigue en dos <path> por lo práctico: la cabeza del rayo muere dentro del cabo de la
-  C, así que en monocromo es una sola línea y en bicolor (B) no hay costura visible.
--->
-<svg width="0" height="0" style="position:absolute">
-  <defs>
-    <g id="marca">
-      <!-- C: centro (512,512), radio 320, trazo 110, boca a la derecha (-55°→+55°). -->
-      <path d="M 695 250 A 320 320 0 1 0 695 774"
-            fill="none" stroke="var(--c)" stroke-width="110" stroke-linecap="round"/>
-      <!-- El rayo: forma rellena, esquinas duras, punta afilada abajo y cabeza ancha
-           soldada al cabo de la C arriba. -->
-      <path d="M 655 212 L 735 288 L 465 545 L 585 592 L 222 880 L 345 610 L 218 560 Z"
-            fill="var(--r)"/>
-    </g>
-  </defs>
-</svg>
+    <div class="card anterior" style="--fondo:#14151a; --c:#c6cbf0; --r:#c6cbf0">
+      <svg class="icono" viewBox="0 0 1024 1024" role="img" aria-label="Versión anterior del logo de Compety">
+        <rect width="1024" height="1024" fill="var(--fondo)"/>
+        <use href="#marca-anterior"/>
+      </svg>
+      <h2>B · Versión anterior</h2>
+      <small>C circular, cabo redondo y rayo más pesado</small>
+      <div class="fila-mini" aria-hidden="true">
+        <div class="muestra"><svg class="mini-60" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca-anterior"/></svg><span>60</span></div>
+        <div class="muestra"><svg class="mini-29" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca-anterior"/></svg><span>29</span></div>
+        <div class="muestra"><svg class="mini-21" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca-anterior"/></svg><span>21</span></div>
+      </div>
+    </div>
 
-<div class="grid">
+    <div class="card" style="--fondo:#14151a; --c:#e6ece9; --r:#c6cbf0">
+      <svg class="icono" viewBox="0 0 1024 1024" role="img" aria-label="Construcción bicolor del nuevo logo">
+        <rect width="1024" height="1024" fill="var(--fondo)"/>
+        <use href="#marca"/>
+      </svg>
+      <h2>C · Construcción bicolor</h2>
+      <small>Permite comprobar el solape entre la C y el rayo</small>
+      <div class="fila-mini" aria-hidden="true">
+        <div class="muestra"><svg class="mini-60" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>60</span></div>
+        <div class="muestra"><svg class="mini-29" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>29</span></div>
+        <div class="muestra"><svg class="mini-21" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>21</span></div>
+      </div>
+    </div>
 
-  <div class="card" style="--fondo:#14151a; --c:#c6cbf0; --r:#c6cbf0">
-    <svg class="icono" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-    <h2>A · Marca de la app · ELEGIDA</h2>
-    <small>Monocroma periwinkle</small>
-    <div class="fila-mini">
-      <svg class="mini-60" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-      <svg class="mini-29" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
+    <div class="card" style="--fondo:#c6cbf0; --c:#14151a; --r:#14151a">
+      <svg class="icono" viewBox="0 0 1024 1024" role="img" aria-label="Nuevo logo de Compety invertido">
+        <rect width="1024" height="1024" fill="var(--fondo)"/>
+        <use href="#marca"/>
+      </svg>
+      <h2>D · Fondo de marca</h2>
+      <small>La misma silueta en negativo</small>
+      <div class="fila-mini" aria-hidden="true">
+        <div class="muestra"><svg class="mini-60" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>60</span></div>
+        <div class="muestra"><svg class="mini-29" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>29</span></div>
+        <div class="muestra"><svg class="mini-21" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg><span>21</span></div>
+      </div>
     </div>
   </div>
 
-  <div class="card" style="--fondo:#14151a; --c:#e6ece9; --r:#c6cbf0">
-    <svg class="icono" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-    <h2>B · Invertida</h2>
-    <small>C blanca, rayo periwinkle</small>
-    <div class="fila-mini">
-      <svg class="mini-60" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-      <svg class="mini-29" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-    </div>
-  </div>
-
-  <div class="card" style="--fondo:#14151a; --c:#2ebd6b; --r:#e6ece9">
-    <svg class="icono" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-    <h2>C · Verde del sketch</h2>
-    <small>Obligaría a meter el verde en la app</small>
-    <div class="fila-mini">
-      <svg class="mini-60" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-      <svg class="mini-29" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-    </div>
-  </div>
-
-  <div class="card" style="--fondo:#c6cbf0; --c:#14151a; --r:#14151a">
-    <svg class="icono" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-    <h2>D · Fondo de marca</h2>
-    <small>Monocroma sobre periwinkle</small>
-    <div class="fila-mini">
-      <svg class="mini-60" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-      <svg class="mini-29" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="var(--fondo)"/><use href="#marca"/></svg>
-    </div>
-  </div>
-
-</div>
+  <p class="nota">
+    La versión anterior se muestra atenuada solo como referencia. El grupo SVG canónico
+    continúa llamándose <code>#marca</code>, por lo que el flujo de exportación puede seguir
+    usando el mismo identificador.
+  </p>
+</main>
 </body>
 </html>

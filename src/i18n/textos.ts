@@ -34,9 +34,9 @@ const ES = {
   queLeemosSaludDetalle: 'Solo para tu propia vista. No entran en ninguna clasificación.',
   dondeVa: 'Dónde va',
   dondeVaDetalle:
-    'El cálculo se hace en tu iPhone. Al servidor solo sube tu puntuación, nunca tus pulsos ni tu sueño.',
+    'El cálculo se hace en tu iPhone. Al servidor sube tu puntuación y, de cada entreno, el deporte y la hora; nunca tus pulsos, tu sueño ni la duración.',
   dondeVaCompartido:
-    'Los demás miembros de tu liga ven tu puntuación y tu posición. Nada más.',
+    'Los miembros de tu liga ven tu puntuación y tu posición. Tus amigos y tus ligas privadas ven además tus entrenos en el feed: deporte, puntos y si fue una sesión fuerte para ti. Nada más.',
   puedesCambiar: 'Puedes cambiar los permisos cuando quieras desde Ajustes.',
   continuar: 'Continuar',
   masTarde: 'Ahora no',
@@ -457,7 +457,8 @@ const ES = {
   idioma: 'Idioma',
   idiomaPista: 'Se aplica al momento, sin reiniciar la app.',
   cuenta: 'Cuenta',
-  cuentaTexto: 'Tus datos de salud se quedan en el iPhone. Al servidor solo sube tu puntuación.',
+  cuentaTexto:
+    'Tus datos de salud se quedan en el iPhone. Al servidor sube tu puntuación y, de cada entreno, el deporte y la hora.',
   cerrarSesion: 'Cerrar sesión',
   borrarCuenta: 'Borrar la cuenta',
   borrarAviso:
@@ -465,6 +466,36 @@ const ES = {
   borrar: 'Borrar',
   volverA: '‹ %{donde}',
   atras: 'Atrás',
+
+  // ── Feed de amigos (segunda página de Competi) ────────────────────────────
+  paraTi: 'Para ti',
+  feedAmigos: 'Amigos',
+  feedVacio: 'Aquí saldrán los entrenos de tu gente',
+  feedVacioTexto:
+    'Los de tus amigos y los de quienes compiten contigo en una liga privada. Cada entreno se puede aplaudir y comentar.',
+  feedSinGente: 'Todavía no sigues a nadie: agrega amigos o invita a alguien a tu liga.',
+  feedPrivacidad: 'Tus entrenos los ven tus amigos y tus ligas privadas. Nunca las ligas de zona.',
+  feedTuEntreno: 'Tú',
+  feedSesionFuerte: 'sesión fuerte',
+  feedSesionNormal: 'sesión normal',
+  feedSesionSuave: 'sesión suave',
+  feedAhora: 'ahora',
+  feedHaceMin: 'hace %{n} min',
+  feedHaceHoras: 'hace %{n} h',
+  feedAyer: 'ayer',
+  feedHaceDias: 'hace %{n} días',
+  feedComentarios: 'Comentarios',
+  feedUnComentario: '1 comentario',
+  feedNComentarios: '%{n} comentarios',
+  feedComentar: 'Comentar',
+  feedEscribe: 'Escribe algo…',
+  feedEnviar: 'Enviar',
+  feedSinComentarios: 'Nadie ha comentado todavía. Sé el primero.',
+  feedReaccionaron: 'Han reaccionado',
+  feedQuitar: 'Quitar del feed',
+  feedQuitarAviso: 'Este entreno desaparece del feed de todo el mundo, con sus reacciones y comentarios.',
+  feedCargarMas: 'Cargar más',
+  feedError: 'No se ha podido cargar el feed. Desliza hacia abajo para reintentar.',
 } as const;
 
 const EN: Record<keyof typeof ES, string> = {
@@ -481,8 +512,9 @@ const EN: Record<keyof typeof ES, string> = {
   queLeemosSaludDetalle: 'For your own view only. They never enter a ranking.',
   dondeVa: 'Where it goes',
   dondeVaDetalle:
-    'The calculation happens on your iPhone. Only your score goes to the server, never your heart rate or your sleep.',
-  dondeVaCompartido: 'Other members of your league see your score and your position. Nothing else.',
+    'The calculation happens on your iPhone. Your score goes to the server and, for each workout, the sport and the time; never your heart rate, your sleep or the duration.',
+  dondeVaCompartido:
+    'League members see your score and your position. Your friends and private leagues also see your workouts in the feed: sport, points and whether it was a hard session for you. Nothing else.',
   puedesCambiar: 'You can change permissions any time in Settings.',
   continuar: 'Continue',
   masTarde: 'Not now',
@@ -852,7 +884,8 @@ const EN: Record<keyof typeof ES, string> = {
   idioma: 'Language',
   idiomaPista: 'Applies right away, no need to restart the app.',
   cuenta: 'Account',
-  cuentaTexto: 'Your health data stays on your iPhone. Only your score goes to the server.',
+  cuentaTexto:
+    'Your health data stays on your iPhone. Your score goes to the server and, for each workout, the sport and the time.',
   cerrarSesion: 'Sign out',
   borrarCuenta: 'Delete account',
   borrarAviso:
@@ -860,6 +893,36 @@ const EN: Record<keyof typeof ES, string> = {
   borrar: 'Delete',
   volverA: '‹ %{donde}',
   atras: 'Back',
+
+  // ── Friends feed (second page of Compete) ────────────────────────────────
+  paraTi: 'For you',
+  feedAmigos: 'Friends',
+  feedVacio: 'Your people’s workouts will show up here',
+  feedVacioTexto:
+    'From your friends and from whoever competes with you in a private league. Every workout can be cheered and commented on.',
+  feedSinGente: 'You are not following anyone yet: add friends or invite someone to your league.',
+  feedPrivacidad: 'Your workouts are seen by your friends and your private leagues. Never by area leagues.',
+  feedTuEntreno: 'You',
+  feedSesionFuerte: 'hard session',
+  feedSesionNormal: 'regular session',
+  feedSesionSuave: 'easy session',
+  feedAhora: 'just now',
+  feedHaceMin: '%{n} min ago',
+  feedHaceHoras: '%{n} h ago',
+  feedAyer: 'yesterday',
+  feedHaceDias: '%{n} days ago',
+  feedComentarios: 'Comments',
+  feedUnComentario: '1 comment',
+  feedNComentarios: '%{n} comments',
+  feedComentar: 'Comment',
+  feedEscribe: 'Write something…',
+  feedEnviar: 'Send',
+  feedSinComentarios: 'No comments yet. Be the first.',
+  feedReaccionaron: 'Reactions from',
+  feedQuitar: 'Remove from feed',
+  feedQuitarAviso: 'This workout disappears from everyone’s feed, with its reactions and comments.',
+  feedCargarMas: 'Load more',
+  feedError: 'Could not load the feed. Pull down to try again.',
 };
 
 /**

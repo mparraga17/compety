@@ -67,3 +67,6 @@ src/dev/seed*
 
 # Capturas para la ficha del App Store
 capturas/
+
+# Temporales del CLI de Supabase
+supabase/.temp/

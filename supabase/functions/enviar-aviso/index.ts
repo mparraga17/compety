@@ -22,13 +22,22 @@
 
 const EXPO_PUSH = 'https://exp.host/--/api/v2/push/send';
 
+/**
+ * Dos familias (migración 08): los de LIGA (`sesion`, `liderato`) van a los miembros de la liga y
+ * llevan puntos y tono; los PERSONALES (`amistad`, `amistad_aceptada`, `reaccion`, `comentario`)
+ * van a una sola persona y llevan, si acaso, un texto corto (el emoji o el arranque del
+ * comentario). Quién recibe cada uno lo decide `destinatarios_de` en la base de datos.
+ */
 type Aviso = {
   id: string;
-  liga: string;
+  liga: string | null;
   autor: string;
-  clase: 'sesion' | 'liderato';
-  puntos: number;
-  tono: 'suave' | 'normal' | 'fuerte';
+  clase: 'sesion' | 'liderato' | 'amistad' | 'amistad_aceptada' | 'reaccion' | 'comentario';
+  puntos: number | null;
+  tono: 'suave' | 'normal' | 'fuerte' | null;
+  destinatario?: string | null;
+  entreno?: string | null;
+  texto?: string | null;
 };
 
 type Payload = { type: string; record: Aviso };
@@ -81,16 +90,43 @@ async function marcar(id: string, estado: string) {
  * existe, y encima expondria datos de salud.
  */
 function redactar(nombre: string, aviso: Aviso): { title: string; body: string } {
-  if (aviso.clase === 'liderato') {
-    return {
-      title: 'Cambio de liderato',
-      body: `${nombre} se pone primero con ${aviso.puntos} puntos.`,
-    };
+  switch (aviso.clase) {
+    case 'liderato':
+      return {
+        title: 'Cambio de liderato',
+        body: `${nombre} se pone primero con ${aviso.puntos} puntos.`,
+      };
+    case 'amistad':
+      return {
+        title: 'Petición de amistad',
+        body: `${nombre} quiere ser tu amigo en Compety.`,
+      };
+    case 'amistad_aceptada':
+      return {
+        title: nombre,
+        body: 'Ha aceptado tu petición de amistad. Ya os veis en Competi.',
+      };
+    case 'reaccion':
+      return {
+        title: nombre,
+        body: `Ha reaccionado ${aviso.texto ?? ''} a tu entreno.`.replace('  ', ' '),
+      };
+    case 'comentario':
+      return {
+        title: nombre,
+        body: aviso.texto ? `Ha comentado tu entreno: «${aviso.texto}»` : 'Ha comentado tu entreno.',
+      };
+    default:
+      return {
+        title: nombre,
+        body: `Ha sumado ${aviso.puntos} puntos. Una de sus sesiones más fuertes.`,
+      };
   }
-  return {
-    title: nombre,
-    body: `Ha sumado ${aviso.puntos} puntos. Una de sus sesiones más fuertes.`,
-  };
+}
+
+/** Texto genérico cuando el perfil no tiene nombre: distinto según de dónde venga el aviso. */
+function sinNombre(aviso: Aviso): string {
+  return aviso.destinatario ? 'Alguien' : 'Alguien de tu liga';
 }
 
 /** Trocea los envios. La API de Expo acepta hasta 100 mensajes por peticion. */
@@ -143,7 +179,7 @@ Deno.serve(async (peticion) => {
     }
 
     const perfil = (await sql('nombre_de', [{ p_usuario: aviso.autor }])) as string | null;
-    const { title, body } = redactar(perfil ?? 'Alguien de tu liga', aviso);
+    const { title, body } = redactar(perfil ?? sinNombre(aviso), aviso);
 
     const recibos: unknown[] = [];
     for (const trozo of trocea(tokens)) {
@@ -160,8 +196,13 @@ Deno.serve(async (peticion) => {
             body,
             sound: null,
             channelId: 'ligas',
-            // Para abrir la liga correcta al tocar el aviso. Sin datos de salud.
-            data: { liga: aviso.liga, clase: aviso.clase },
+            // Para abrir lo correcto al tocar el aviso: la liga, la bandeja de amigos o el
+            // feed. Sin datos de salud.
+            data: {
+              clase: aviso.clase,
+              liga: aviso.liga ?? undefined,
+              entreno: aviso.entreno ?? undefined,
+            },
           })),
         ),
       });

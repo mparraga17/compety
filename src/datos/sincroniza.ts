@@ -11,6 +11,7 @@ import {
   type Movimiento,
 } from './ligas';
 import { HAY_SERVIDOR } from './supabase';
+import { entrenosParaPublicar, publicarEntrenos } from './feed';
 import { leeDeportes, leeEsfuerzos, leeMaximo, guardaMaximo } from './almacen';
 import { deduplica, type SesionCruda } from '../motor/fusion';
 import { zDe } from '../motor/base';
@@ -139,6 +140,11 @@ export async function sincroniza(): Promise<Sincronizacion> {
   const ligas = await misLigas();
   let subidas = 0;
   let avisos = 0;
+
+  // ⭐ El feed de amigos: cada entreno, con su tipo, sus puntos y su tono, para que tu gente
+  // pueda aplaudirlo. Idempotente por huella (repetir no duplica; corregir el deporte actualiza).
+  // Si falla no frena las puntuaciones: el feed es social, la liga es el producto.
+  await publicarEntrenos(entrenosParaPublicar(resultado)).catch(() => 0);
 
   for (const liga of ligas) {
     // La liga general acepta todo; las de deporte filtran por su lista de tipos.

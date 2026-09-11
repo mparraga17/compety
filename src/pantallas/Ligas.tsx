@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -7,10 +7,13 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
+import { Feed } from './Feed';
 import { Recarga } from '../componentes/Recarga';
 import { Aparece } from '../componentes/Aparece';
+import { tonoAvatar } from '../componentes/Avatar';
 import { Barra } from '../componentes/Barra';
 import { Ciencia } from '../componentes/Ciencia';
 import { HALO_PODIO, Halo, haloDePuesto } from '../componentes/Halo';
@@ -67,6 +70,22 @@ const FUENTES: readonly ClaveCiencia[] = [
 
 type Props = {
   ligas: readonly LigaRemota[];
+  /**
+   * ⭐ La liga que se enseña la decide App, no esta pantalla. Antes era un `useState` inicializado
+   * con `ligas[0]` al montar, y App monta las pestañas UNA vez: quien entraba sin ligas y se unía
+   * a la primera se quedaba con `null` para siempre (tabla vacía, "invita a alguien", como si la
+   * liga a la que acababa de entrar no existiera), y quien creaba una nueva seguía viendo la
+   * primera de la lista. Fue el primer bug reportado por los amigos en TestFlight.
+   */
+  ligaActiva: string | null;
+  onLigaActiva: (id: string) => void;
+  /** Vuelve a leer la LISTA de ligas (miembros, nombres). Se llama en cada recarga. */
+  onRecargarLigas?: () => Promise<void>;
+  /**
+   * Contador que sube cuando un aviso (reacción, comentario) pide ir al feed. La pantalla se
+   * desliza a la segunda página y el feed se recarga.
+   */
+  irAlFeed?: number;
   yo: string | null;
   onCrear: () => void;
   onEntrar: () => void;
@@ -189,35 +208,6 @@ function Cabecera({
  */
 const RETARDO_TABLA = 60;
 
-/**
- * ⭐ Tonos de avatar por persona, deterministas por nombre.
- *
- * Antes todos los avatares eran el mismo círculo gris con inicial, y una tabla de siete círculos
- * idénticos se lee como una lista de datos, no como un grupo de gente. El tono es IDENTIDAD, no
- * jerarquía: la misma persona sale siempre del mismo color, y el rango lo siguen marcando el
- * metal del puesto y la barra, que son señales que no se pisan.
- *
- * ⚠️ La paleta esquiva a propósito los colores que ya significan algo: nada cercano al periwinkle
- * (`eres tú`), al coral (`peor`) ni a los tres metales. Todos a lightness parecida para que
- * ninguno grite, y usados a 0,15 de alpha en el fondo: el color de verdad solo lo lleva la
- * inicial, que contra el fondo oscuro pasa de 7:1 de contraste en los seis tonos.
- */
-const TONOS_AVATAR: readonly string[] = [
-  '163,196,160', // salvia
-  '226,169,178', // rosa palo
-  '142,202,196', // turquesa apagado
-  '138,176,214', // azul acero
-  '196,160,200', // malva
-  '186,192,140', // oliva
-];
-
-/** Tono estable para un nombre: mismo nombre, mismo color, sin estado que mantener. */
-function tonoAvatar(nombre: string): string {
-  let h = 0;
-  for (let i = 0; i < nombre.length; i += 1) h = (h * 31 + nombre.charCodeAt(i)) | 0;
-  return TONOS_AVATAR[Math.abs(h) % TONOS_AVATAR.length];
-}
-
 /** El rgb de cada metal del podio, para los degradados de las barras. Mismos valores que el halo. */
 const RGB_METAL: readonly string[] = [HALO_PODIO.oro.rgb, HALO_PODIO.plata.rgb, HALO_PODIO.bronce.rgb];
 
@@ -326,8 +316,99 @@ function Fila({
   );
 }
 
+/** Ancho de cada etiqueta del indicador de páginas. Fijo, para que el subrayado sepa dónde ir. */
+const ANCHO_PESTANITA = 104;
+
+/**
+ * ⭐ Las dos páginas de Competi: "Para ti" (tu clasificación) y "Amigos" (el feed). Se cambia
+ * deslizando, como en TikTok, o tocando la etiqueta. El subrayado sigue al dedo: va atado al
+ * desplazamiento real del pager con `Animated.event`, no a un estado discreto, así que a mitad
+ * de gesto está a mitad de camino. Es lo que hace que el gesto se sienta físico y no como dos
+ * pantallas que se alternan.
+ */
+function Pestanitas({
+  scrollX,
+  ancho,
+  pagina,
+  etiquetas,
+  onIr,
+}: {
+  scrollX: Animated.Value;
+  ancho: number;
+  pagina: number;
+  etiquetas: readonly string[];
+  onIr: (pagina: number) => void;
+}) {
+  const desplazamiento = scrollX.interpolate({
+    inputRange: [0, Math.max(ancho, 1)],
+    outputRange: [0, ANCHO_PESTANITA],
+    extrapolate: 'clamp',
+  });
+  return (
+    <View style={s.pestanitas} accessibilityRole="tablist">
+      {etiquetas.map((etiqueta, i) => (
+        <Pulsable
+          key={etiqueta}
+          style={s.pestanita}
+          onPress={() => onIr(i)}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: pagina === i }}
+        >
+          <Text style={[s.pestanitaTexto, pagina === i && s.pestanitaActiva]}>{etiqueta}</Text>
+        </Pulsable>
+      ))}
+      <Animated.View style={[s.subrayado, { transform: [{ translateX: desplazamiento }] }]} />
+    </View>
+  );
+}
+
+/**
+ * El pager horizontal con las dos páginas. Cada página ocupa el ancho de la ventana; la primera
+ * lleva dentro su propio scroll vertical (o el estado vacío), la segunda el feed.
+ */
+function Paginas({
+  ancho,
+  scrollX,
+  pagerRef,
+  onPagina,
+  children,
+}: {
+  ancho: number;
+  scrollX: Animated.Value;
+  pagerRef: React.RefObject<ScrollView | null>;
+  onPagina: (pagina: number) => void;
+  children: readonly [ReactNode, ReactNode];
+}) {
+  // Altura medida: cada página la recibe explícita, así los scrolls verticales de dentro saben
+  // cuánto miden sin depender de cómo estire el contenedor horizontal.
+  const [alto, setAlto] = useState(0);
+  return (
+    <Animated.ScrollView
+      ref={pagerRef}
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      bounces={false}
+      scrollEventThrottle={16}
+      onLayout={(ev) => setAlto(ev.nativeEvent.layout.height)}
+      onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+        useNativeDriver: true,
+      })}
+      onMomentumScrollEnd={(ev) => onPagina(Math.round(ev.nativeEvent.contentOffset.x / ancho))}
+      style={s.pager}
+    >
+      <View style={{ width: ancho, height: alto > 0 ? alto : undefined }}>{children[0]}</View>
+      <View style={{ width: ancho, height: alto > 0 ? alto : undefined }}>{children[1]}</View>
+    </Animated.ScrollView>
+  );
+}
+
 export function Ligas({
   ligas,
+  ligaActiva,
+  onLigaActiva,
+  onRecargarLigas,
+  irAlFeed = 0,
   yo,
   onCrear,
   onEntrar,
@@ -341,8 +422,24 @@ export function Ligas({
 }: Props) {
   const idioma = idiomaActual();
   const t = textos(idioma);
-  const [ligaActiva, setLigaActiva] = useState<string | null>(ligas[0]?.id ?? null);
   const [horizonte, setHorizonte] = useState<IdHorizonte>(HORIZONTE_POR_DEFECTO);
+
+  // Las dos páginas: 0 = Para ti, 1 = Amigos. El pager es la fuente de verdad del gesto.
+  const { width: ancho } = useWindowDimensions();
+  const [pagina, setPagina] = useState(0);
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const pager = useRef<ScrollView | null>(null);
+  const irA = useCallback(
+    (p: number) => {
+      pager.current?.scrollTo({ x: p * ancho, animated: true });
+      setPagina(p);
+    },
+    [ancho],
+  );
+  // Un aviso de reacción o comentario trae aquí: a la página del feed.
+  useEffect(() => {
+    if (irAlFeed > 0) irA(1);
+  }, [irAlFeed, irA]);
   const [tabla, setTabla] = useState<readonly Puesto[]>([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -372,7 +469,12 @@ export function Ligas({
       // Ascensos y descensos de la jornada recien cerrada. Los celebra App, que es quien
       // tiene la Celebracion montada encima de todo.
       if (r.movimientos.length > 0) onMovimientos?.(r.movimientos);
-      const tablaNueva = await clasificacion(ligaActiva, horizonte);
+      // La lista de ligas se refresca a la vez que la tabla: el "N miembros" del título salía
+      // de la lista y no se enteraba de que alguien había entrado hasta reabrir la app.
+      const [tablaNueva] = await Promise.all([
+        clasificacion(ligaActiva, horizonte),
+        onRecargarLigas?.(),
+      ]);
       setTabla(tablaNueva);
       /*
         ⭐ Celebración de liderato: se avisa a App cuando vas PRIMERO con al menos un rival.
@@ -393,7 +495,7 @@ export function Ligas({
     } finally {
       setCargando(false);
     }
-  }, [ligaActiva, horizonte, onMovimientos, onPrimero, yo]);
+  }, [ligaActiva, horizonte, onMovimientos, onPrimero, onRecargarLigas, yo]);
 
   useEffect(() => {
     void cargar();
@@ -436,6 +538,19 @@ export function Ligas({
     );
   }
 
+  const feedPagina = (
+    <Feed yo={yo} activo={pagina === 1} senal={irAlFeed} onAmigos={onAmigos} />
+  );
+  const pestanitas = (
+    <Pestanitas
+      scrollX={scrollX}
+      ancho={ancho}
+      pagina={pagina}
+      etiquetas={[t.paraTi, t.feedAmigos]}
+      onIr={irA}
+    />
+  );
+
   if (ligas.length === 0) {
     return (
       <View style={s.fondo}>
@@ -447,24 +562,28 @@ export function Ligas({
           inicial={inicial}
           racha={racha}
         />
-        <View style={s.centro}>
-          <Text style={s.titulo}>{t.sinLiga}</Text>
-          <Text style={s.suave}>{t.sinLigaTexto}</Text>
-          <Pulsable style={s.boton} accessibilityRole="button" onPress={onCrear}>
-            <Text style={s.botonTexto}>{t.crearLiga}</Text>
-          </Pulsable>
-          <Pulsable style={s.secundario} accessibilityRole="button" onPress={onEntrar}>
-            <Text style={s.secundarioTexto}>{t.tengoCodigo}</Text>
-          </Pulsable>
-          {/*
-            ⭐ La zona en el estado vacío es la vía que NO exige conocer a nadie: quien llega
-            sin amigos en la app puede competir desde el primer día. Es justo el arranque en
-            frío que las ligas privadas no resuelven.
-          */}
-          <Pulsable style={s.secundario} accessibilityRole="button" onPress={onZona}>
-            <Text style={s.secundarioTexto}>{t.zonaTitulo}</Text>
-          </Pulsable>
-        </View>
+        {pestanitas}
+        <Paginas ancho={ancho} scrollX={scrollX} pagerRef={pager} onPagina={setPagina}>
+          <View style={s.centro}>
+            <Text style={s.titulo}>{t.sinLiga}</Text>
+            <Text style={s.suave}>{t.sinLigaTexto}</Text>
+            <Pulsable style={s.boton} accessibilityRole="button" onPress={onCrear}>
+              <Text style={s.botonTexto}>{t.crearLiga}</Text>
+            </Pulsable>
+            <Pulsable style={s.secundario} accessibilityRole="button" onPress={onEntrar}>
+              <Text style={s.secundarioTexto}>{t.tengoCodigo}</Text>
+            </Pulsable>
+            {/*
+              ⭐ La zona en el estado vacío es la vía que NO exige conocer a nadie: quien llega
+              sin amigos en la app puede competir desde el primer día. Es justo el arranque en
+              frío que las ligas privadas no resuelven.
+            */}
+            <Pulsable style={s.secundario} accessibilityRole="button" onPress={onZona}>
+              <Text style={s.secundarioTexto}>{t.zonaTitulo}</Text>
+            </Pulsable>
+          </View>
+          {feedPagina}
+        </Paginas>
       </View>
     );
   }
@@ -613,17 +732,17 @@ export function Ligas({
   })();
 
   return (
-    <ScrollView
-      style={s.fondo}
-      contentContainerStyle={s.contenido}
-      refreshControl={<Recarga cargando={cargando} onRecargar={cargar} />}
-    >
+    <View style={s.fondo}>
       {/*
         ⭐ El halo toma el color del METAL del puesto, así el oro del primero no queda como una
         nota de color suelta. Es el detalle que el usuario echó en falta: "el brillito difuminado
         que se veía en círculo encima".
       */}
       <Halo {...(miPuesto >= 0 ? haloDePuesto(miPuesto + 1) : {})} />
+      {/*
+        La cabecera y las pestañitas quedan FIJAS y las dos páginas se deslizan debajo: es lo que
+        hace que el gesto se lea como cambiar de página y no como que la pantalla se va.
+      */}
       <Cabecera
         t={t}
         onAmigos={onAmigos}
@@ -631,7 +750,14 @@ export function Ligas({
         inicial={inicial}
         racha={racha}
       />
-
+      {pestanitas}
+      <Paginas ancho={ancho} scrollX={scrollX} pagerRef={pager} onPagina={setPagina}>
+    <ScrollView
+      style={s.fondo}
+      contentContainerStyle={s.contenido}
+      // `pegado`: la cabecera ya no va dentro del scroll, así que la rueda no necesita bajar.
+      refreshControl={<Recarga cargando={cargando} onRecargar={cargar} pegado />}
+    >
       {/*
         ⭐ Dos desplegables, no tiras horizontales. Con 8 ligas las últimas quedaban fuera del
         borde y había que arrastrar para verlas, que es lo que hacía que la pantalla pareciera
@@ -641,7 +767,7 @@ export function Ligas({
         <Selector
           etiqueta={t.liga}
           valor={liga.id}
-          onCambio={setLigaActiva}
+          onCambio={onLigaActiva}
           opciones={ligas.map((l) => ({
             id: l.id,
             nombre: nombreDe(l),
@@ -923,6 +1049,9 @@ export function Ligas({
         <Ciencia ids={FUENTES} />
       </View>
     </ScrollView>
+        {feedPagina}
+      </Paginas>
+    </View>
   );
 }
 
@@ -930,6 +1059,27 @@ const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: tema.color.fondo },
   // Sin padding lateral ni superior: la cabecera trae el suyo y el resto lo pone `bloque`.
   contenido: { paddingBottom: tema.espacio.xl * 2 },
+  pager: { flex: 1 },
+  // El indicador de páginas: dos etiquetas de ancho fijo y un subrayado de marca que se desliza.
+  // Selección por peso y color del texto, más el subrayado. Sin cajas ni fondos.
+  pestanitas: {
+    flexDirection: 'row',
+    paddingHorizontal: tema.espacio.l,
+    marginBottom: tema.espacio.s,
+    position: 'relative',
+  },
+  pestanita: { width: ANCHO_PESTANITA, minHeight: 36, justifyContent: 'center' },
+  pestanitaTexto: { ...tema.tipo.cuerpo, color: tema.color.textoTenue, fontWeight: '600' },
+  pestanitaActiva: { color: tema.color.texto },
+  subrayado: {
+    position: 'absolute',
+    left: tema.espacio.l,
+    bottom: 0,
+    width: 28,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: tema.color.marca,
+  },
   bloque: { paddingHorizontal: tema.espacio.l },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: tema.espacio.l },
   // Título de estado vacío: aquí SÍ es grande, porque no compite con ninguna cifra.

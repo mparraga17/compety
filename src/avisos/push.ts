@@ -3,6 +3,9 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { HAY_SERVIDOR, supabase } from '../datos/supabase';
+import { destinoDe, type DestinoAviso } from './destino';
+
+export type { DestinoAviso } from './destino';
 
 /**
  * Notificaciones push.
@@ -108,4 +111,23 @@ export async function prepararCanal(): Promise<void> {
     importance: Notifications.AndroidImportance.DEFAULT,
     sound: null,
   });
+}
+
+/**
+ * Escucha los toques en los avisos y avisa a la app de a dónde ir. Devuelve la función para
+ * dejar de escuchar. Cubre también el aviso que ABRIÓ la app desde cerrada, que en iOS no pasa
+ * por el listener.
+ */
+export function escucharToques(onDestino: (destino: DestinoAviso) => void): () => void {
+  const sub = Notifications.addNotificationResponseReceivedListener((respuesta) => {
+    const destino = destinoDe(respuesta.notification.request.content.data);
+    if (destino !== null) onDestino(destino);
+  });
+  void Notifications.getLastNotificationResponseAsync()
+    .then((ultima) => {
+      const destino = ultima === null ? null : destinoDe(ultima.notification.request.content.data);
+      if (destino !== null) onDestino(destino);
+    })
+    .catch(() => undefined);
+  return () => sub.remove();
 }

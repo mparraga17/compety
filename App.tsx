@@ -4,7 +4,7 @@ import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 
 import { registrarSegundoPlano } from './src/avisos/segundoPlano';
-import { guardarToken, prepararCanal, prepararPush } from './src/avisos/push';
+import { escucharToques, guardarToken, prepararCanal, prepararPush } from './src/avisos/push';
 import { Celebracion } from './src/componentes/Celebracion';
 import { HALO_PODIO } from './src/componentes/Halo';
 import { Marca } from './src/componentes/Marca';
@@ -114,6 +114,22 @@ export default function App() {
   const [codigoEnlace, setCodigoEnlace] = useState<string | null>(null);
   const [cuenta, setCuenta] = useState<Cuenta | null>(null);
   const [ligas, setLigas] = useState<readonly LigaRemota[]>([]);
+  /**
+   * ⭐ La liga que enseña Competi. Vive aquí porque aquí se sabe cuál acabas de crear o a cuál
+   * acabas de entrar, y porque las pestañas se montan una sola vez: un `useState` dentro de
+   * Ligas se congelaba con la lista del primer render (bug de TestFlight, 11 sep).
+   */
+  const [ligaActiva, setLigaActiva] = useState<string | null>(null);
+  // Candado: nunca apunta a una liga que no esté en la lista. Sin liga elegida, la primera.
+  useEffect(() => {
+    if (ligas.length === 0) {
+      if (ligaActiva !== null) setLigaActiva(null);
+      return;
+    }
+    if (ligaActiva === null || !ligas.some((l) => l.id === ligaActiva)) {
+      setLigaActiva(ligas[0].id);
+    }
+  }, [ligas, ligaActiva]);
   /** Espejo de `ligas` para callbacks estables. Ver el comentario de `celebrarLiderato`. */
   const ligasRef = useRef<readonly LigaRemota[]>([]);
   useEffect(() => {
@@ -544,6 +560,28 @@ export default function App() {
     })();
   }, [fase, cuenta]);
 
+  /**
+   * ⭐ Tocar un aviso lleva a lo que anuncia: la liga, la bandeja de amigos o el feed. Antes el
+   * toque solo abría la app y te dejaba donde estuvieras, que es decirle a alguien "Sergio ha
+   * comentado tu entreno" y no enseñárselo.
+   */
+  const [irAlFeed, setIrAlFeed] = useState(0);
+  useEffect(() => {
+    if (fase !== 'dentro') return;
+    return escucharToques((destino) => {
+      setPestana('competi');
+      if (destino.tipo === 'liga') {
+        setLigaActiva(destino.liga);
+        setModales([]);
+      } else if (destino.tipo === 'amigos') {
+        setModales(['amigos']);
+      } else {
+        setModales([]);
+        setIrAlFeed((n) => n + 1);
+      }
+    });
+  }, [fase]);
+
   async function entrarDentro(c: Cuenta) {
     setCuenta(c);
     await cargarLigas();
@@ -628,6 +666,10 @@ export default function App() {
             <View style={[s.pestana, pestana !== 'competi' && s.oculta]}>
               <Ligas
                 ligas={ligas}
+                ligaActiva={ligaActiva}
+                onLigaActiva={setLigaActiva}
+                onRecargarLigas={cargarLigas}
+                irAlFeed={irAlFeed}
                 yo={cuenta?.id ?? null}
                 inicial={(cuenta?.nombre ?? '?').slice(0, 1).toUpperCase()}
                 onCrear={() => abrirModal('crear-liga')}
@@ -744,10 +786,12 @@ export default function App() {
               modo={modal === 'crear-liga' ? 'crear' : 'entrar'}
               // El código del enlace de invitación, ya puesto: solo queda confirmar.
               codigoInicial={modal === 'entrar-liga' ? (codigoEnlace ?? undefined) : undefined}
-              onHecho={() => {
+              onHecho={(ligaId) => {
                 setCodigoEnlace(null);
-                void cargarLigas();
                 cerrarModal();
+                // Primero la lista, luego la elección: si se eligiera antes de que la lista
+                // traiga la liga nueva, el candado de `ligaActiva` la devolvería a la primera.
+                void cargarLigas().then(() => setLigaActiva(ligaId));
               }}
               onCancelar={() => {
                 // Cancelar también gasta el código: reabrir la misma invitación en bucle

@@ -10,7 +10,7 @@
   <header>
     <h1>Política de Privacidad</h1>
     <p class="subtitle">Compety</p>
-    <p class="updated">Última actualización: 9 de septiembre de 2026</p>
+    <p class="updated">Última actualización: 11 de septiembre de 2026</p>
   </header>
 
   <p class="lang-switch"><a href="privacy-en.html">Switch to English</a></p>
@@ -19,7 +19,7 @@
     <p>Compety es una aplicación de competición deportiva entre amigos. Lee datos de actividad física del iPhone, calcula una puntuación y la comparte con los miembros de las ligas a las que te unes. Esta política explica qué datos se tratan, dónde se tratan y qué sale del teléfono.</p>
 
     <div class="aviso">
-      <p><strong>Lo esencial en dos frases.</strong> Tus datos de salud se leen y se procesan en tu propio iPhone. Al servidor solo viaja tu puntuación, nunca tus pulsos, tu sueño ni tus entrenos.</p>
+      <p><strong>Lo esencial en dos frases.</strong> Tus datos de salud se leen y se procesan en tu propio iPhone. Al servidor solo viaja tu puntuación y, de cada entreno, el tipo de deporte y cuándo terminó; nunca tus pulsos, tu sueño, ni la duración o el detalle de tus sesiones.</p>
     </div>
 
     <h2>1. Responsable del tratamiento</h2>
@@ -38,6 +38,7 @@
       <tr><td>Energía activa, distancia y pasos</td><td>Contexto de la sesión</td><td>No</td></tr>
       <tr><td>Sueño y métricas diarias (frecuencia cardíaca en reposo, saturación de oxígeno, frecuencia respiratoria, VO₂ máx., variabilidad cardíaca)</td><td>Mostrarte tu propia evolución</td><td>No</td></tr>
       <tr><td><strong>Tu puntuación</strong></td><td>Clasificación de la liga</td><td><strong>Sí</strong></td></tr>
+      <tr><td><strong>De cada entreno: tipo de deporte, puntos, si fue una sesión fuerte, normal o suave para ti, y la hora en que terminó</strong></td><td>Feed de amigos, para que tu gente pueda animarte</td><td><strong>Sí</strong> (sin duración, sin pulsos, sin ruta)</td></tr>
     </table>
 
     <p>El cálculo de la puntuación se realiza <strong>íntegramente en tu dispositivo</strong>. Los datos de salud en bruto no se transmiten a ningún servidor, ni se almacenan fuera de tu iPhone, ni se copian a iCloud.</p>
@@ -54,12 +55,14 @@
       <li><strong>Identificador de acceso:</strong> tu dirección de correo electrónico, o el identificador que proporcione Sign in with Apple. Si usas Sign in with Apple puedes elegir ocultar tu correo real, y en ese caso recibimos únicamente una dirección de reenvío anónima de Apple.</li>
       <li><strong>Nombre visible:</strong> el que elijas para aparecer en las clasificaciones. Puede ser un apodo y lo puedes cambiar cuando quieras.</li>
       <li><strong>Ligas a las que perteneces</strong> y las puntuaciones que has obtenido.</li>
+      <li><strong>Tus amistades</strong> dentro de la app (peticiones enviadas y aceptadas), y las <strong>reacciones y comentarios</strong> que escribes en los entrenos de otras personas.</li>
     </ul>
     <p>No se solicita fecha de nacimiento, género, número de teléfono, dirección postal ni documento de identidad.</p>
 
     <h2>5. Qué ven las demás personas</h2>
     <p>Los miembros de una liga a la que te has unido pueden ver tu nombre visible, tu puntuación y tu posición en la clasificación de esa liga.</p>
-    <p>No pueden ver tu frecuencia cardíaca, tu sueño, tus métricas de salud ni el detalle de tus sesiones. Esos datos no salen de tu teléfono, por lo que ni siquiera están disponibles para compartirlos.</p>
+    <p><strong>Feed de amigos.</strong> Tus amigos aceptados y los miembros de tus ligas privadas ven, de cada entreno tuyo, el tipo de deporte, los puntos, si fue una sesión fuerte, normal o suave respecto a tu propia media, y cuándo terminó. Pueden reaccionar y comentar, y tú ves lo mismo de ellos. Los miembros de las ligas públicas de zona <strong>no</strong> ven tus entrenos. Puedes quitar cualquier entreno del feed desde la propia app.</p>
+    <p>Nadie puede ver tu frecuencia cardíaca, tu sueño, tus métricas de salud, la duración de tus sesiones ni tu ruta. Esos datos no salen de tu teléfono, por lo que ni siquiera están disponibles para compartirlos.</p>
     <p>Solo se accede a una liga con un código de invitación. No existe un directorio público de usuarios ni buscador de personas.</p>
 
     <h2>6. Contactos, ubicación y publicidad</h2>
@@ -70,7 +73,7 @@
     <h2>7. Proveedores que intervienen</h2>
     <table>
       <tr><th>Proveedor</th><th>Función</th><th>Qué recibe</th></tr>
-      <tr><td>Supabase</td><td>Autenticación y base de datos de cuentas, ligas y puntuaciones</td><td>Identificador de acceso, nombre visible, puntuaciones</td></tr>
+      <tr><td>Supabase</td><td>Autenticación y base de datos de cuentas, ligas, puntuaciones y feed</td><td>Identificador de acceso, nombre visible, puntuaciones, amistades, entrenos publicados (tipo, puntos, tono, hora), reacciones y comentarios</td></tr>
       <tr><td>Apple</td><td>Sign in with Apple y distribución de la app</td><td>Lo que Apple gestiona en su propio proceso de identificación</td></tr>
       <tr><td>Expo</td><td>Compilación y actualizaciones de la aplicación</td><td>Datos técnicos de instalación, sin datos de salud</td></tr>
       <tr><td>GitHub Pages</td><td>Alojamiento del sitio web, de la página de invitación y de estas páginas legales</td><td>Datos técnicos de la visita en los registros del servidor de GitHub, según su propia política de privacidad</td></tr>
@@ -85,7 +88,7 @@
 
     <h2>9. Tus derechos</h2>
     <p>Puedes ejercer los derechos de acceso, rectificación, supresión, limitación, portabilidad y oposición escribiendo a <a href="mailto:pizcodeploy@gmail.com">pizcodeploy@gmail.com</a>.</p>
-    <p><strong>Eliminar tu cuenta:</strong> puedes hacerlo directamente desde la aplicación, en Ajustes, sin escribir a nadie. Se eliminan tu cuenta, tu nombre visible, tus puntuaciones y tu pertenencia a las ligas.</p>
+    <p><strong>Eliminar tu cuenta:</strong> puedes hacerlo directamente desde la aplicación, en Ajustes, sin escribir a nadie. Se eliminan tu cuenta, tu nombre visible, tus puntuaciones, tus amistades, tus entrenos publicados con sus reacciones y comentarios, y tu pertenencia a las ligas.</p>
     <p><strong>Retirar el acceso a los datos de salud:</strong> Ajustes del iPhone, Privacidad y seguridad, Salud, Compety. La aplicación seguirá funcionando, aunque sin datos no podrá calcular tu puntuación.</p>
     <p>Si consideras que el tratamiento no se ajusta a la normativa, puedes reclamar ante la <a href="https://www.aepd.es" target="_blank" rel="noopener">Agencia Española de Protección de Datos</a>.</p>
 

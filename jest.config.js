@@ -16,5 +16,6 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testMatch: ['**/src/(motor|i18n|datos)/**/*.test.ts'],
+  // `src/avisos` entro el 11 sep por `destino.test.ts`: el destino de un aviso al tocarlo es JS puro.
+  testMatch: ['**/src/(motor|i18n|datos|avisos)/**/*.test.ts'],
 };

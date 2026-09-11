@@ -628,9 +628,10 @@ export function Ligas({
    * exista, así que vive en dos sitios: el bloque de "compites solo" y la fila del código.
    */
   const compartirLiga = () => {
-    // El mismo nombre que enseña el título de la pantalla. Solo se comparte en ligas
-    // privadas (zona === null en los tres puntos de entrada), así que no hay caso de zona.
-    const nombre = liga.deporte === null ? nombreLiga('global', idioma) : liga.nombre;
+    // El nombre REAL de la liga (el mismo bug de "General" en vez del nombre vivía aquí: la
+    // invitación por WhatsApp decía "te invito a General"). Solo se comparte en ligas privadas
+    // (zona === null en los tres puntos de entrada), así que no hay caso de zona.
+    const nombre = liga.nombre;
     void Share.share({
       message: conValores(t.invitacion, {
         liga: nombre,
@@ -651,7 +652,14 @@ export function Ligas({
     if (l.zona !== null) {
       return `📍 ${l.zona.distrito ?? l.zona.ciudad} · ${conValores(t.divisionCorta, { n: l.zona.division })}`;
     }
-    return l.deporte === null ? nombreLiga('global', idioma) : l.nombre;
+    /*
+      ⛔⛔ AQUÍ HABÍA `l.deporte === null ? nombreLiga('global') : l.nombre`, y pintaba "General" u
+      "Overall" en vez del NOMBRE de cualquier liga privada que aceptara todos los deportes. En
+      TestFlight (11 sep) el usuario abrió el selector y vio "Madrid · Div. 1, Chamberí · Div. 1,
+      Overall": su liga "Chavales Z72" estaba ahí, disfrazada. Una liga se llama como la bautizó
+      quien la creó; el deporte, si lo tiene, va detrás como apellido.
+    */
+    return l.deporte === null ? l.nombre : `${l.nombre} · ${nombreLiga(l.deporte as IdLiga, idioma)}`;
   };
 
   /**
@@ -812,21 +820,29 @@ export function Ligas({
         */}
         <View style={s.tituloLiga}>
           <Text style={s.tituloLigaNombre}>
-            {/* El 📍 también en el título: la misma señal en el selector y en la pantalla. */}
-            {zona !== null
-              ? `📍 ${zona.distrito ?? zona.ciudad}`
-              : liga.deporte === null
-                ? nombreLiga('global', idioma)
-                : liga.nombre}
+            {/*
+              El 📍 también en el título: la misma señal en el selector y en la pantalla. Y el
+              NOMBRE de la liga privada siempre (mismo bug que en `nombreDe`: aquí también salía
+              "General" en vez de "Chavales Z72").
+            */}
+            {zona !== null ? `📍 ${zona.distrito ?? zona.ciudad}` : liga.nombre}
           </Text>
           <Text style={s.tituloLigaMiembros}>
-            {/* En zona, la división ES parte de "dónde estoy": va junto a los miembros. */}
+            {/*
+              En zona, la división ES parte de "dónde estoy": va junto a los miembros. En una liga
+              de deporte concreto, el deporte hace el mismo papel.
+            */}
             {zona !== null
               ? `${conValores(t.division, { n: zona.division })} · ${conValores(
                   tabla.length === 1 ? t.unMiembro : t.nMiembros,
                   { n: tabla.length },
                 )}`
-              : conValores(tabla.length === 1 ? t.unMiembro : t.nMiembros, { n: tabla.length })}
+              : liga.deporte !== null
+                ? `${nombreLiga(liga.deporte as IdLiga, idioma)} · ${conValores(
+                    tabla.length === 1 ? t.unMiembro : t.nMiembros,
+                    { n: tabla.length },
+                  )}`
+                : conValores(tabla.length === 1 ? t.unMiembro : t.nMiembros, { n: tabla.length })}
           </Text>
         </View>
 

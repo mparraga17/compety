@@ -72,9 +72,12 @@ function sinServidor(): never {
 export async function misLigas(): Promise<readonly LigaRemota[]> {
   if (!HAY_SERVIDOR) return [];
 
+  // Orden fijo por antigüedad: sin `order` Postgres devuelve las filas en el orden que le
+  // convenga, y la primera de la lista es la que se enseña por defecto.
   const { data, error } = await supabase
     .from('ligas')
-    .select('id, nombre, deporte, codigo, division, miembros(count), zonas(ciudad, distrito, divisiones)');
+    .select('id, nombre, deporte, codigo, division, miembros(count), zonas(ciudad, distrito, divisiones)')
+    .order('creado', { ascending: true });
   if (error) throw error;
 
   return (data ?? []).map((l) => {

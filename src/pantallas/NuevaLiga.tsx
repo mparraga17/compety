@@ -35,7 +35,8 @@ type Props = {
    * confirma con un toque, en vez de teclearlo: es el paso que el enlace existe para quitar.
    */
   codigoInicial?: string;
-  onHecho: () => void;
+  /** Recibe el id de la liga creada o a la que se ha entrado, para que Competi la enseñe. */
+  onHecho: (ligaId: string) => void;
   onCancelar: () => void;
 };
 
@@ -45,7 +46,7 @@ export function NuevaLiga({ modo, codigoInicial, onHecho, onCancelar }: Props) {
   const [nombre, setNombre] = useState('');
   const [deporte, setDeporte] = useState<IdLiga | null>(null);
   const [codigo, setCodigo] = useState(codigoInicial ?? '');
-  const [creada, setCreada] = useState<{ codigo: string } | null>(null);
+  const [creada, setCreada] = useState<{ id: string; codigo: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,7 +86,11 @@ export function NuevaLiga({ modo, codigoInicial, onHecho, onCancelar }: Props) {
         >
           <Text style={s.botonTexto}>{t.compartirCodigo}</Text>
         </Pulsable>
-        <Pulsable style={s.secundario} accessibilityRole="button" onPress={onHecho}>
+        <Pulsable
+          style={s.secundario}
+          accessibilityRole="button"
+          onPress={() => onHecho(creada.id)}
+        >
           <Text style={s.secundarioTexto}>{t.verClasificacion}</Text>
         </Pulsable>
       </View>
@@ -96,8 +101,8 @@ export function NuevaLiga({ modo, codigoInicial, onHecho, onCancelar }: Props) {
     const puedeEntrar = !ocupado && codigo.length === 6;
     const entrar = () =>
       accion(async () => {
-        await entrarEnLiga(codigo);
-        onHecho();
+        const id = await entrarEnLiga(codigo);
+        onHecho(id);
       });
 
     return (
@@ -227,7 +232,7 @@ export function NuevaLiga({ modo, codigoInicial, onHecho, onCancelar }: Props) {
         accessibilityRole="button"
         onPress={() => accion(async () => {
           const r = await crearLiga(nombre, deporte);
-          setCreada({ codigo: r.codigo });
+          setCreada({ id: r.id, codigo: r.codigo });
         })}
       >
         <Text style={s.botonTexto}>{t.crear}</Text>

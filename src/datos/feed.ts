@@ -147,6 +147,42 @@ export async function publicarEntrenos(lote: readonly EntrenoParaPublicar[]): Pr
   return (data as number | null) ?? 0;
 }
 
+/** La fila tal y como la devuelven `feed` y `entrenos_de`, que comparten columnas a propósito. */
+type FilaEntreno = {
+  id: string;
+  usuario: string;
+  nombre: string;
+  deporte: string | null;
+  puntos: number;
+  tono: Tono;
+  fin: string;
+  reacciones: Record<string, number> | null;
+  mi_reaccion: string | null;
+  comentarios: number;
+};
+
+function aEntreno(f: FilaEntreno): Entreno {
+  const reacciones: Partial<Record<Emoji, number>> = {};
+  for (const [k, n] of Object.entries(f.reacciones ?? {})) {
+    if (esEmoji(k) && n > 0) reacciones[k] = n;
+  }
+  return {
+    id: f.id,
+    usuario: f.usuario,
+    nombre: f.nombre,
+    deporte: f.deporte,
+    puntos: f.puntos,
+    tono: f.tono,
+    fin: new Date(f.fin).getTime(),
+    reacciones,
+    miReaccion: esEmoji(f.mi_reaccion) ? f.mi_reaccion : null,
+    comentarios: f.comentarios,
+  };
+}
+
+/** Una página de entrenos. Es la firma que comparten el feed y la lista de una persona. */
+export type CargaEntrenos = (limite: number, antes: number | null) => Promise<Entreno[]>;
+
 /**
  * El feed, del más reciente al más antiguo. `antes` es el `fin` del último recibido, para
  * paginar; sin él, la primera página.
@@ -159,36 +195,35 @@ export async function feed(limite = 30, antes: number | null = null): Promise<En
     p_antes: antes === null ? null : new Date(antes).toISOString(),
   });
   if (error) throw error;
+  return ((data ?? []) as FilaEntreno[]).map(aEntreno);
+}
 
-  return ((data ?? []) as {
-    id: string;
-    usuario: string;
-    nombre: string;
-    deporte: string | null;
-    puntos: number;
-    tono: Tono;
-    fin: string;
-    reacciones: Record<string, number> | null;
-    mi_reaccion: string | null;
-    comentarios: number;
-  }[]).map((f) => {
-    const reacciones: Partial<Record<Emoji, number>> = {};
-    for (const [k, n] of Object.entries(f.reacciones ?? {})) {
-      if (esEmoji(k) && n > 0) reacciones[k] = n;
-    }
-    return {
-      id: f.id,
-      usuario: f.usuario,
-      nombre: f.nombre,
-      deporte: f.deporte,
-      puntos: f.puntos,
-      tono: f.tono,
-      fin: new Date(f.fin).getTime(),
-      reacciones,
-      miReaccion: esEmoji(f.mi_reaccion) ? f.mi_reaccion : null,
-      comentarios: f.comentarios,
-    };
+/**
+ * Los entrenos de UNA persona, con la misma regla de visibilidad que el feed. Vacío si no la
+ * puedes ver; `puedoVer` distingue ese caso de "no tiene entrenos".
+ */
+export async function entrenosDe(
+  usuario: string,
+  limite = 30,
+  antes: number | null = null,
+): Promise<Entreno[]> {
+  if (!HAY_SERVIDOR) return [];
+
+  const { data, error } = await supabase.rpc('entrenos_de', {
+    p_usuario: usuario,
+    p_limite: limite,
+    p_antes: antes === null ? null : new Date(antes).toISOString(),
   });
+  if (error) throw error;
+  return ((data ?? []) as FilaEntreno[]).map(aEntreno);
+}
+
+/** ¿Puedo ver los entrenos de esta persona? Amigos aceptados y compañeros de liga privada. */
+export async function puedoVer(usuario: string): Promise<boolean> {
+  if (!HAY_SERVIDOR) return false;
+  const { data, error } = await supabase.rpc('ve_entrenos_de', { p_autor: usuario });
+  if (error) throw error;
+  return data === true;
 }
 
 /** Pone, cambia o quita (`null`) tu reacción. El servidor avisa al dueño la primera vez. */

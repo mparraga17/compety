@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +15,7 @@ import { Aparece } from '../componentes/Aparece';
 import { Avatar } from '../componentes/Avatar';
 import { Pulsable } from '../componentes/Pulsable';
 import { Recarga } from '../componentes/Recarga';
+import { useAlturaTeclado } from '../componentes/teclado';
 import { mensajeDe } from '../datos/errores';
 import {
   EMOJIS,
@@ -28,6 +28,7 @@ import {
   reaccionar,
   reaccionesDe,
   tiempoRelativo,
+  type CargaEntrenos,
   type Comentario,
   type Emoji,
   type Entreno,
@@ -50,20 +51,68 @@ import { tema } from '../tema';
  *
  * Reaccionar es optimista: la fila cambia al tocar y el servidor confirma después. Si falla, se
  * deshace y se avisa. Es lo que hace que un toque se sienta como un toque y no como una petición.
+ *
+ * La lista en sí es `ListaEntrenos`, genérica sobre QUIÉN carga los entrenos: el feed le pasa
+ * `feed`, y la ficha de una persona (`Persona.tsx`) le pasa sus entrenos. Misma tarjeta, mismas
+ * reacciones, misma hoja de comentarios.
  */
 
 const PAGINA = 30;
 
-type Props = {
+/** Quién es esta persona, para abrir su ficha. */
+export type PersonaRef = { id: string; nombre: string };
+
+type PropsFeed = {
   yo: string | null;
   /** true cuando esta página está a la vista. La primera carga espera a que lo esté. */
   activo: boolean;
   /** Cambia cuando llega un aviso de reacción o comentario: se recarga. */
   senal?: number;
   onAmigos: () => void;
+  /** Tocar a alguien en una tarjeta abre su ficha. */
+  onPersona?: (persona: PersonaRef) => void;
 };
 
-export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
+export function Feed({ yo, activo, senal = 0, onAmigos, onPersona }: PropsFeed) {
+  const t = textos(idiomaActual());
+  return (
+    <ListaEntrenos
+      yo={yo}
+      activo={activo}
+      senal={senal}
+      cargar={feed}
+      onPersona={onPersona}
+      vacio={<Vacio t={t} onAmigos={onAmigos} />}
+      pie={<Text style={s.privacidad}>{t.feedPrivacidad}</Text>}
+    />
+  );
+}
+
+type PropsLista = {
+  yo: string | null;
+  activo: boolean;
+  senal?: number;
+  /** Una página de entrenos: el feed entero o los de una persona. */
+  cargar: CargaEntrenos;
+  /** Qué enseñar cuando no hay nada. */
+  vacio: ReactNode;
+  /** Encima de la lista (la ficha de la persona, por ejemplo). */
+  cabecera?: ReactNode;
+  /** Debajo del botón de cargar más. */
+  pie?: ReactNode;
+  onPersona?: (persona: PersonaRef) => void;
+};
+
+export function ListaEntrenos({
+  yo,
+  activo,
+  senal = 0,
+  cargar: cargarPagina,
+  vacio,
+  cabecera,
+  pie,
+  onPersona,
+}: PropsLista) {
   const idioma = idiomaActual();
   const t = textos(idioma);
   const [entrenos, setEntrenos] = useState<readonly Entreno[] | null>(null);
@@ -78,7 +127,7 @@ export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
     setCargando(true);
     setError(null);
     try {
-      const primera = await feed(PAGINA);
+      const primera = await cargarPagina(PAGINA, null);
       setEntrenos(primera);
       setFinLista(primera.length < PAGINA);
     } catch (e) {
@@ -88,14 +137,14 @@ export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [cargarPagina]);
 
   const cargarMas = useCallback(async () => {
     if (entrenos === null || entrenos.length === 0 || finLista || masCargando) return;
     setMasCargando(true);
     try {
       const ultimo = entrenos[entrenos.length - 1];
-      const siguiente = await feed(PAGINA, ultimo.fin);
+      const siguiente = await cargarPagina(PAGINA, ultimo.fin);
       setEntrenos((prev) => [...(prev ?? []), ...siguiente]);
       setFinLista(siguiente.length < PAGINA);
     } catch {
@@ -103,7 +152,7 @@ export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
     } finally {
       setMasCargando(false);
     }
-  }, [entrenos, finLista, masCargando]);
+  }, [cargarPagina, entrenos, finLista, masCargando]);
 
   // Primera carga al llegar a la página; después, cada vez que un aviso lo pida.
   const cargado = useRef(false);
@@ -125,6 +174,7 @@ export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
       await reaccionar(e.id, optimista.miReaccion);
     } catch (err) {
       reemplaza(e);
+      if (abierto?.id === e.id) setAbierto(e);
       Alert.alert(t.feedAmigos, mensajeDe(err));
     }
   };
@@ -147,26 +197,27 @@ export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
     ]);
   };
 
-  const vacio = entrenos !== null && entrenos.length === 0;
+  const vacioAhora = entrenos !== null && entrenos.length === 0;
 
   return (
     <View style={s.fondo}>
       <FlatList
         data={entrenos ?? []}
         keyExtractor={(e) => e.id}
-        contentContainerStyle={[s.contenido, vacio && s.contenidoVacio]}
+        contentContainerStyle={[s.contenido, vacioAhora && cabecera === undefined && s.contenidoVacio]}
+        // `pegado` siempre: en Competi la lista va bajo la cabecera fija, y en la ficha de una
+        // persona va dentro de una hoja. En ninguno de los dos casos hay isla dinámica encima.
         refreshControl={<Recarga cargando={cargando} onRecargar={() => void cargar()} pegado />}
         onEndReachedThreshold={0.4}
         onEndReached={() => void cargarMas()}
         ListHeaderComponent={
-          error !== null ? <Text style={s.error}>{t.feedError}</Text> : null
+          <>
+            {cabecera}
+            {error !== null && <Text style={s.error}>{t.feedError}</Text>}
+          </>
         }
         ListEmptyComponent={
-          entrenos === null ? (
-            <ActivityIndicator color={tema.color.marca} style={s.rueda} />
-          ) : (
-            <Vacio t={t} onAmigos={onAmigos} />
-          )
+          entrenos === null ? <ActivityIndicator color={tema.color.marca} style={s.rueda} /> : <>{vacio}</>
         }
         ListFooterComponent={
           entrenos !== null && entrenos.length > 0 ? (
@@ -179,7 +230,7 @@ export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
                     <Text style={s.cargarMasTexto}>{t.feedCargarMas}</Text>
                   </Pulsable>
                 ))}
-              <Text style={s.privacidad}>{t.feedPrivacidad}</Text>
+              {pie}
             </View>
           ) : null
         }
@@ -194,6 +245,7 @@ export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
               onEmoji={(emoji) => void tocarEmoji(item, emoji)}
               onComentarios={() => setAbierto(item)}
               onQuitar={() => quitar(item)}
+              onPersona={onPersona === undefined ? undefined : () => onPersona({ id: item.usuario, nombre: item.nombre })}
             />
           </Aparece>
         )}
@@ -218,7 +270,7 @@ export function Feed({ yo, activo, senal = 0, onAmigos }: Props) {
   );
 }
 
-/** Estado vacío: qué es esto y cómo llenarlo. Sin gráficos vacíos que parezcan un error. */
+/** Estado vacío del feed: qué es esto y cómo llenarlo. Sin gráficos vacíos que parezcan un error. */
 function Vacio({ t, onAmigos }: { t: Textos; onAmigos: () => void }) {
   return (
     <View style={s.vacio}>
@@ -247,6 +299,7 @@ function Tarjeta({
   onEmoji,
   onComentarios,
   onQuitar,
+  onPersona,
 }: {
   e: Entreno;
   esMio: boolean;
@@ -256,29 +309,47 @@ function Tarjeta({
   onEmoji: (emoji: Emoji) => void;
   onComentarios: () => void;
   onQuitar: () => void;
+  onPersona?: () => void;
 }) {
   const fuerte = e.tono === 'fuerte';
   const nombre = esMio ? t.feedTuEntreno : e.nombre;
 
+  const cabecera = (
+    <>
+      <Avatar nombre={e.nombre} esYo={esMio} />
+      <View style={s.medio}>
+        <View style={s.nombreFila}>
+          <Text style={[s.nombre, esMio && s.nombreYo]} numberOfLines={1}>
+            {nombre}
+          </Text>
+          <Text style={s.cuando}>{tiempoRelativo(e.fin, ahora, t)}</Text>
+        </View>
+        <Text style={s.detalle} numberOfLines={1}>
+          {iconoDe(e.deporte)} {nombreDeTipo(e.deporte, idioma)}
+          <Text style={s.punto}> · </Text>
+          <Text style={fuerte ? s.tonoFuerte : undefined}>{etiquetaTono(e.tono, t)}</Text>
+        </Text>
+      </View>
+      <Text style={[s.puntos, fuerte && s.puntosFuerte]}>{e.puntos}</Text>
+    </>
+  );
+
   return (
     <View style={s.tarjeta}>
-      <View style={s.filaArriba}>
-        <Avatar nombre={e.nombre} esYo={esMio} />
-        <View style={s.medio}>
-          <View style={s.nombreFila}>
-            <Text style={[s.nombre, esMio && s.nombreYo]} numberOfLines={1}>
-              {nombre}
-            </Text>
-            <Text style={s.cuando}>{tiempoRelativo(e.fin, ahora, t)}</Text>
-          </View>
-          <Text style={s.detalle} numberOfLines={1}>
-            {iconoDe(e.deporte)} {nombreDeTipo(e.deporte, idioma)}
-            <Text style={s.punto}> · </Text>
-            <Text style={fuerte ? s.tonoFuerte : undefined}>{etiquetaTono(e.tono, t)}</Text>
-          </Text>
-        </View>
-        <Text style={[s.puntos, fuerte && s.puntosFuerte]}>{e.puntos}</Text>
-      </View>
+      {/* La persona es pulsable: abre su ficha con todos sus entrenos. */}
+      {onPersona !== undefined ? (
+        <Pulsable
+          fila
+          style={s.filaArriba}
+          onPress={onPersona}
+          accessibilityRole="button"
+          accessibilityLabel={e.nombre}
+        >
+          {cabecera}
+        </Pulsable>
+      ) : (
+        <View style={s.filaArriba}>{cabecera}</View>
+      )}
 
       <View style={s.acciones}>
         {EMOJIS.map((emoji) => {
@@ -336,6 +407,9 @@ function Tarjeta({
  *
  * Es un `Modal` propio y no la `Hoja` compartida porque la caja de texto tiene que quedarse
  * abajo, fija, encima del teclado; la Hoja mete todo en un scroll con el botón de cerrar al final.
+ *
+ * ⚠️ El hueco del teclado lo pone `useAlturaTeclado`, NO `KeyboardAvoidingView`: dentro de una
+ * hoja KAV calcula mal y la caja quedaba tapada (bug de TestFlight). Ver el comentario del hook.
  */
 function HojaComentarios({
   e,
@@ -358,6 +432,8 @@ function HojaComentarios({
   const [reacciones, setReacciones] = useState<readonly Reaccion[]>([]);
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const alturaTeclado = useAlturaTeclado();
+  const lista = useRef<FlatList<Comentario>>(null);
   const ahora = Date.now();
 
   useEffect(() => {
@@ -391,10 +467,12 @@ function HojaComentarios({
         texto: limpio,
         creado: Date.now(),
       };
-      const lista = [...(comentarios ?? []), nuevo];
-      setComentarios(lista);
-      onCambioComentarios(lista.length);
+      const todos = [...(comentarios ?? []), nuevo];
+      setComentarios(todos);
+      onCambioComentarios(todos.length);
       setTexto('');
+      // El comentario recién escrito, a la vista.
+      setTimeout(() => lista.current?.scrollToEnd({ animated: true }), 50);
     } catch (err) {
       Alert.alert(t.feedComentar, mensajeDe(err));
     } finally {
@@ -405,9 +483,9 @@ function HojaComentarios({
   const borrar = (c: Comentario) => {
     void borrarComentario(c.id)
       .then(() => {
-        const lista = (comentarios ?? []).filter((x) => x.id !== c.id);
-        setComentarios(lista);
-        onCambioComentarios(lista.length);
+        const quedan = (comentarios ?? []).filter((x) => x.id !== c.id);
+        setComentarios(quedan);
+        onCambioComentarios(quedan.length);
       })
       .catch((err) => Alert.alert(t.borrar, mensajeDe(err)));
   };
@@ -417,10 +495,7 @@ function HojaComentarios({
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onCerrar}>
-      <KeyboardAvoidingView
-        style={s.hoja}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <Animated.View style={[s.hoja, { paddingBottom: alturaTeclado }]}>
         <View style={s.agarre} />
         <View style={s.hojaCabecera}>
           <View style={s.medio}>
@@ -463,10 +538,12 @@ function HojaComentarios({
         )}
 
         <FlatList
+          ref={lista}
           style={s.lista}
           data={comentarios ?? []}
           keyExtractor={(c) => c.id}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           contentContainerStyle={s.listaContenido}
           ListEmptyComponent={
             comentarios === null ? (
@@ -523,7 +600,7 @@ function HojaComentarios({
             <Text style={s.enviarTexto}>{t.feedEnviar}</Text>
           </Pulsable>
         </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
     </Modal>
   );
 }

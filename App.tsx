@@ -29,6 +29,8 @@ import { Hoy } from './src/pantallas/Hoy';
 import { Ligas } from './src/pantallas/Ligas';
 import { NuevaLiga } from './src/pantallas/NuevaLiga';
 import { Perfil } from './src/pantallas/Perfil';
+import { Persona } from './src/pantallas/Persona';
+import type { PersonaRef } from './src/pantallas/Feed';
 import { Sesiones } from './src/pantallas/Sesiones';
 import { Zona } from './src/pantallas/Zona';
 import { Salud } from './src/pantallas/Salud';
@@ -566,6 +568,8 @@ export default function App() {
    * comentado tu entreno" y no enseñárselo.
    */
   const [irAlFeed, setIrAlFeed] = useState(0);
+  /** La persona cuya ficha (sus entrenos) está abierta. null = ninguna. */
+  const [persona, setPersona] = useState<PersonaRef | null>(null);
   useEffect(() => {
     if (fase !== 'dentro') return;
     return escucharToques((destino) => {
@@ -670,6 +674,7 @@ export default function App() {
                 onLigaActiva={setLigaActiva}
                 onRecargarLigas={cargarLigas}
                 irAlFeed={irAlFeed}
+                onPersona={setPersona}
                 yo={cuenta?.id ?? null}
                 inicial={(cuenta?.nombre ?? '?').slice(0, 1).toUpperCase()}
                 onCrear={() => abrirModal('crear-liga')}
@@ -754,7 +759,7 @@ export default function App() {
                   cerrarModal();
                 }}
               />
-              <Amigos ligas={ligas} />
+              <Amigos ligas={ligas} onPersona={setPersona} />
             </>
           )}
 
@@ -844,6 +849,12 @@ export default function App() {
           }}
         />
       )}
+
+      {/*
+        La ficha de una persona (sus entrenos). Es una hoja nativa, así que se abre igual desde la
+        tabla de la liga, desde el feed o desde el modal de Amigos, encima de lo que haya.
+      */}
+      <Persona persona={persona} yo={cuenta?.id ?? null} onCerrar={() => setPersona(null)} />
     </View>
   );
 }

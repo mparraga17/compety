@@ -48,9 +48,11 @@ import { tema } from '../tema';
 type Props = {
   /** Para el boton de invitar. Si esta vacio, no se ofrece. */
   ligas: readonly LigaRemota[];
+  /** Tocar a un amigo abre su ficha con sus entrenos. */
+  onPersona?: (persona: { id: string; nombre: string }) => void;
 };
 
-export function Amigos({ ligas }: Props) {
+export function Amigos({ ligas, onPersona }: Props) {
   const t = textos();
   const [busqueda, setBusqueda] = useState('');
   const [hallado, setHallado] = useState<Persona | null>(null);
@@ -276,13 +278,23 @@ export function Amigos({ ligas }: Props) {
 
       {amigos.map((a) => (
         <View key={a.id} style={s.fila}>
-          <View style={s.avatar}>
-            <Text style={s.avatarTexto}>{a.nombre.slice(0, 1).toUpperCase()}</Text>
-          </View>
-          <View style={s.filaMedio}>
-            <Text style={s.nombre}>{a.nombre}</Text>
-            <Text style={s.filaDetalle}>@{a.usuario}</Text>
-          </View>
+          {/* La persona es pulsable: abre su ficha con sus entrenos. El botón de invitar, aparte. */}
+          <Pulsable
+            fila
+            style={s.filaPersona}
+            onPress={() => onPersona?.({ id: a.id, nombre: a.nombre })}
+            disabled={onPersona === undefined}
+            accessibilityRole="button"
+            accessibilityLabel={a.nombre}
+          >
+            <View style={s.avatar}>
+              <Text style={s.avatarTexto}>{a.nombre.slice(0, 1).toUpperCase()}</Text>
+            </View>
+            <View style={s.filaMedio}>
+              <Text style={s.nombre}>{a.nombre}</Text>
+              <Text style={s.filaDetalle}>@{a.usuario}</Text>
+            </View>
+          </Pulsable>
           {ligaElegida !== null && (
             <Pulsable
               style={[s.botonMini, ocupado && s.apagado]}
@@ -363,6 +375,8 @@ const s = StyleSheet.create({
     paddingVertical: tema.espacio.s + 2,
   },
   fila: { flexDirection: 'row', alignItems: 'center', paddingVertical: tema.espacio.s },
+  // La parte pulsable de la fila de un amigo: avatar y nombre, ocupando lo que no es el botón.
+  filaPersona: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: tema.tactil },
   avatar: {
     width: 30,
     height: 30,

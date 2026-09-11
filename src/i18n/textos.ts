@@ -496,6 +496,15 @@ const ES = {
   feedQuitarAviso: 'Este entreno desaparece del feed de todo el mundo, con sus reacciones y comentarios.',
   feedCargarMas: 'Cargar más',
   feedError: 'No se ha podido cargar el feed. Desliza hacia abajo para reintentar.',
+
+  // ── Ficha de una persona (sus entrenos) ──────────────────────────────────
+  personaEntrenos: 'Sus entrenos',
+  personaSinEntrenos: 'Todavía no ha publicado ningún entreno. Aparecerán aquí cuando abra la app.',
+  personaOculta:
+    'Solo tus amigos y quienes compiten contigo en una liga privada te enseñan sus entrenos. Compartís una liga de zona, así que aún no puedes verlos.',
+  personaPedir: 'Pedir amistad',
+  personaPedida: 'Petición enviada. Cuando acepte, verás sus entrenos aquí.',
+  personaTusEntrenos: 'Tus entrenos, tal y como los ve tu gente.',
 } as const;
 
 const EN: Record<keyof typeof ES, string> = {
@@ -923,6 +932,15 @@ const EN: Record<keyof typeof ES, string> = {
   feedQuitarAviso: 'This workout disappears from everyone’s feed, with its reactions and comments.',
   feedCargarMas: 'Load more',
   feedError: 'Could not load the feed. Pull down to try again.',
+
+  // ── A person's page (their workouts) ─────────────────────────────────────
+  personaEntrenos: 'Their workouts',
+  personaSinEntrenos: 'No workouts published yet. They will show up here once they open the app.',
+  personaOculta:
+    'Only your friends and the people who compete with you in a private league show you their workouts. You share an area league, so you cannot see theirs yet.',
+  personaPedir: 'Send friend request',
+  personaPedida: 'Request sent. Once they accept, their workouts will show up here.',
+  personaTusEntrenos: 'Your workouts, as your people see them.',
 };
 
 /**

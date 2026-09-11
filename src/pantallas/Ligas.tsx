@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { Feed } from './Feed';
+import { Feed, type PersonaRef } from './Feed';
 import { Recarga } from '../componentes/Recarga';
 import { Aparece } from '../componentes/Aparece';
 import { tonoAvatar } from '../componentes/Avatar';
@@ -86,6 +86,8 @@ type Props = {
    * desliza a la segunda página y el feed se recarga.
    */
   irAlFeed?: number;
+  /** Abre la ficha de una persona (sus entrenos), desde la tabla o desde el feed. */
+  onPersona?: (persona: PersonaRef) => void;
   yo: string | null;
   onCrear: () => void;
   onEntrar: () => void;
@@ -220,6 +222,7 @@ function Fila({
   t,
   franja = null,
   corona = false,
+  onPersona,
 }: {
   p: Puesto;
   i: number;
@@ -231,6 +234,8 @@ function Fila({
   franja?: FranjaDivision | null;
   /** La corona del líder. La decide el padre: solo cuando hay al menos dos compitiendo. */
   corona?: boolean;
+  /** Tocar la fila abre la ficha de esa persona con sus entrenos. */
+  onPersona?: () => void;
 }) {
   const entrada = useEntrada(RETARDO_TABLA + escalonDe(i));
   const etiqueta = etiquetaPersona(p.nombre, esYo, idioma);
@@ -242,7 +247,20 @@ function Fila({
   const tinte = tonoAvatar(p.nombre);
 
   return (
-    <Animated.View style={[s.fila, entrada]}>
+    <Animated.View style={entrada}>
+    {/*
+      ⭐ La fila entera es pulsable y abre la ficha de la persona (sus entrenos). Es la petición
+      de los amigos de la beta: "si estás en la liga con alguien y le pulsas, ves sus entrenos".
+      `fila` en el Pulsable: solo cambia el fondo, sin hundirse, que es lo que toca a una fila.
+    */}
+    <Pulsable
+      fila
+      style={s.fila}
+      onPress={onPersona}
+      disabled={onPersona === undefined}
+      accessibilityRole="button"
+      accessibilityLabel={`${etiqueta} · ${p.puntos} ${t.puntos}`}
+    >
       <Text style={[s.puesto, enPodio && { color: metal, fontWeight: '600' }]}>{i + 1}</Text>
       {/*
         ⭐ La franja de división: un glifo pequeño junto al puesto, no un fondo de color. Regla
@@ -312,6 +330,7 @@ function Fila({
         </View>
       </View>
       <Text style={[s.puntos, enPodio && { color: metal }, esYo && s.negrita]}>{p.puntos}</Text>
+    </Pulsable>
     </Animated.View>
   );
 }
@@ -409,6 +428,7 @@ export function Ligas({
   onLigaActiva,
   onRecargarLigas,
   irAlFeed = 0,
+  onPersona,
   yo,
   onCrear,
   onEntrar,
@@ -539,7 +559,7 @@ export function Ligas({
   }
 
   const feedPagina = (
-    <Feed yo={yo} activo={pagina === 1} senal={irAlFeed} onAmigos={onAmigos} />
+    <Feed yo={yo} activo={pagina === 1} senal={irAlFeed} onAmigos={onAmigos} onPersona={onPersona} />
   );
   const pestanitas = (
     <Pestanitas
@@ -931,6 +951,9 @@ export function Ligas({
             }
             // La corona solo cuando hay a quién ganar: coronarte solo en tu liga sería burla.
             corona={i === 0 && tabla.length > 1}
+            onPersona={
+              onPersona === undefined ? undefined : () => onPersona({ id: p.usuario, nombre: p.nombre })
+            }
           />
         ))}
 

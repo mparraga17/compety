@@ -640,10 +640,16 @@ export function Ligas({
     });
   };
 
-  /** Nombre visible de una liga en el selector: la etiqueta de zona lleva su división. */
+  /**
+   * Nombre visible de una liga en el selector: la de zona lleva el 📍 y su división.
+   *
+   * El prefijo lo pidió el usuario (11 sep): "Madrid" y "Chamberí" salían en el desplegable
+   * igual que una liga privada más, y no se veía que eran las públicas de su zona. Mismo
+   * criterio que el 🔥 de la racha o la 👑 del líder: un glifo del sistema, sin librería de iconos.
+   */
   const nombreDe = (l: LigaRemota): string => {
     if (l.zona !== null) {
-      return `${l.zona.distrito ?? l.zona.ciudad} · ${conValores(t.divisionCorta, { n: l.zona.division })}`;
+      return `📍 ${l.zona.distrito ?? l.zona.ciudad} · ${conValores(t.divisionCorta, { n: l.zona.division })}`;
     }
     return l.deporte === null ? nombreLiga('global', idioma) : l.nombre;
   };
@@ -806,8 +812,9 @@ export function Ligas({
         */}
         <View style={s.tituloLiga}>
           <Text style={s.tituloLigaNombre}>
+            {/* El 📍 también en el título: la misma señal en el selector y en la pantalla. */}
             {zona !== null
-              ? (zona.distrito ?? zona.ciudad)
+              ? `📍 ${zona.distrito ?? zona.ciudad}`
               : liga.deporte === null
                 ? nombreLiga('global', idioma)
                 : liga.nombre}

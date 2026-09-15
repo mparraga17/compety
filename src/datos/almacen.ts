@@ -26,6 +26,8 @@ export const CLAVES = {
   observador: 'observador',
   /** La cuenta propia tal y como se leyo por ultima vez del servidor. Ver `leeCuenta`. */
   cuenta: 'cuenta',
+  /** Resumen de pulsos de una sesion ya leida de HealthKit. Ver `leeResumenes`. */
+  pulsos: (idSesion: string) => `pulsos:${idSesion}`,
   /**
    * Celebracion ya mostrada. La clave lleva el momento y su periodo (`oms:2026-09-07`), asi
    * cada logro se celebra UNA vez: una celebracion que reaparece cada vez que abres la app
@@ -242,6 +244,86 @@ export async function actualizaCuenta(
 
 export async function olvidaCuenta(almacen: Almacen): Promise<void> {
   await almacen.borrar(CLAVES.cuenta);
+}
+
+/**
+ * ⭐ Resumen de pulsos por sesion: lo que permite leer un año de historial sin releer HealthKit.
+ *
+ * Leer los pulsos es lo caro del motor (dos consultas por sesion, en serie). Con 30 dias eran
+ * ~15 sesiones; con el año que hace falta para que la clasificacion anual sea de verdad anual,
+ * son cientos. Lo que se guarda es el resumen INDEPENDIENTE del maximo de referencia (segundos
+ * por cada pulso, ver `ResumenPulsos`), asi que sobrevive a que el maximo se recalcule cada
+ * semana. Solo se guardan sesiones ya "asentadas" (varios dias de antiguedad): las recientes se
+ * releen porque la pulsera puede volcar sus datos horas despues.
+ *
+ * `v` es la version del formato: si cambia, el valor viejo se ignora y se relee. Un valor
+ * corrupto tambien se ignora: releer es siempre seguro.
+ */
+type ResumenGuardado = {
+  v: 1;
+  n: number;
+  suma: number;
+  hist: [number, number][];
+};
+
+/** Forma minima del resumen, la de `motor/zonas.ts`. Se repite aqui para no importar el motor. */
+export type ResumenParaGuardar = {
+  n: number;
+  suma: number;
+  hist: readonly (readonly [number, number])[];
+};
+
+export async function guardaResumen(
+  almacen: Almacen,
+  idSesion: string,
+  resumen: ResumenParaGuardar,
+): Promise<void> {
+  const guardado: ResumenGuardado = {
+    v: 1,
+    n: resumen.n,
+    suma: resumen.suma,
+    hist: resumen.hist.map(([lpm, seg]) => [lpm, seg]),
+  };
+  await almacen.guardar(CLAVES.pulsos(idSesion), JSON.stringify(guardado));
+}
+
+function esResumenValido(x: unknown): x is ResumenGuardado {
+  if (x === null || typeof x !== 'object') return false;
+  const r = x as Partial<ResumenGuardado>;
+  return (
+    r.v === 1 &&
+    typeof r.n === 'number' &&
+    Number.isFinite(r.n) &&
+    typeof r.suma === 'number' &&
+    Number.isFinite(r.suma) &&
+    Array.isArray(r.hist) &&
+    r.hist.every(
+      (par) =>
+        Array.isArray(par) &&
+        par.length === 2 &&
+        Number.isFinite(par[0]) &&
+        Number.isFinite(par[1]) &&
+        par[1] >= 0,
+    )
+  );
+}
+
+/** Resumenes de varias sesiones de una vez. Solo devuelve los que existen y son validos. */
+export async function leeResumenes(
+  almacen: Almacen,
+  ids: readonly string[],
+): Promise<Record<string, ResumenParaGuardar>> {
+  const pares = await Promise.all(
+    ids.map(async (id) => {
+      const bruto = await leerJson<unknown>(almacen, CLAVES.pulsos(id));
+      return [id, esResumenValido(bruto) ? bruto : null] as const;
+    }),
+  );
+  return Object.fromEntries(
+    pares
+      .filter((p): p is readonly [string, ResumenGuardado] => p[1] !== null)
+      .map(([id, r]) => [id, { n: r.n, suma: r.suma, hist: r.hist }]),
+  );
 }
 
 /** ¿Se celebró ya este momento? El id lleva el periodo dentro (`oms:2026-09-07`). */

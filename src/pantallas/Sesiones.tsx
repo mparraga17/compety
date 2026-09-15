@@ -118,11 +118,12 @@ const FUENTES: readonly ClaveCiencia[] = [
 ];
 
 /**
- * Días de historial que trae el motor.
+ * Días de historial que ENSEÑA esta pantalla.
  *
- * ⚠️ Tiene que coincidir con el `calcula(30)` de `App.tsx`. Se declara aquí porque la pantalla lo
- * necesita para la frase de la cabecera, y `Resultado` no lleva la ventana consigo.
- * 📌 Si algún día se cambia el 30 de `cargarSalud`, hay que cambiarlo aquí también.
+ * El motor trae el año entero (hace falta para que la clasificación anual sea anual), pero una
+ * lista de cientos de sesiones en un ScrollView sin virtualizar tardaría en pintarse y no es lo
+ * que se viene a mirar aquí: se viene a ver las últimas semanas. La frase de la cabecera dice
+ * este número, y la lista recorta a este número, así que siempre cuadran.
  */
 const DIAS_HISTORIAL = 30;
 
@@ -141,7 +142,9 @@ export function Sesiones({ resultado, cargando, onRecargar, onDeclararEsfuerzo, 
   // el esfuerzo, en vez de quedarse con una copia vieja de los puntos.
   const [abierta, setAbierta] = useState<string | null>(null);
 
-  const sesiones = resultado?.sesiones ?? [];
+  // Solo lo que la pantalla enseña (ver DIAS_HISTORIAL): el resultado trae el año entero.
+  const desde = Date.now() - DIAS_HISTORIAL * 86_400_000;
+  const sesiones = (resultado?.sesiones ?? []).filter((x) => x.inicio >= desde);
   const dias = porDia(sesiones);
   const fusionadas = sesiones.filter((s) => s.ids.length > 1).length;
 

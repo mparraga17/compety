@@ -1,4 +1,5 @@
 import { procesa, type EntradaSesion } from './sesiones';
+import { resumenDePulsos } from './zonas';
 
 /**
  * Tests del ensamblador del motor: zonas → carga → base → puntos. Hasta hoy no tenía ninguno.
@@ -110,5 +111,62 @@ describe('las dos pasadas', () => {
       MAXIMO,
     );
     expect(r.sesiones.map((s) => s.id)).toEqual(['nueva', 'vieja']);
+  });
+});
+
+/**
+ * La ventana de la base personal. El motor lee el año entero para la clasificación anual, pero
+ * "tu normal" es lo que haces últimamente: la base sale de las sesiones dentro de la ventana y
+ * TODAS se puntúan contra ella, también las anteriores.
+ */
+describe('ventana de la base personal', () => {
+  const DIA = 24 * 60 * MIN;
+
+  it('las sesiones anteriores a la ventana se puntúan pero no definen la base', () => {
+    // Enero: sesiones enormes (dos horas). Últimos meses: media hora. Si enero entrara en la
+    // base, la media subiría y las de ahora saldrían "flojas"; con la ventana, la base es la de
+    // ahora, y la de enero puntúa muy por encima de 50 comparada con lo que haces hoy.
+    const antiguas = [0, 1, 2].map((i) =>
+      entrada({ id: `ene-${i}`, inicio: T0 - (200 + i) * DIA, fin: T0 - (200 + i) * DIA + 120 * MIN, pulsos: pulsos(120, 170, T0 - (200 + i) * DIA) }),
+    );
+    // Duraciones distintas a propósito: cuatro sesiones idénticas darían sigma 0 y todo el
+    // mundo se quedaría en 50 puntos, que es lo honesto pero no lo que este test mide.
+    const recientes = [0, 1, 2, 3].map((i) =>
+      entrada({ id: `hoy-${i}`, inicio: T0 - i * DIA, fin: T0 - i * DIA + (30 + i * 5) * MIN, pulsos: pulsos(30 + i * 5, 170, T0 - i * DIA) }),
+    );
+    const baseDesde = T0 - 90 * DIA;
+
+    const conVentana = procesa([...antiguas, ...recientes], MAXIMO, { baseDesde });
+    const sinVentana = procesa([...antiguas, ...recientes], MAXIMO);
+
+    expect(conVentana.base.n).toBe(4);
+    expect(sinVentana.base.n).toBe(7);
+    expect(conVentana.baseDesde).toBe(baseDesde);
+    expect(sinVentana.baseDesde).toBeNull();
+    // Enero sigue en el resultado (cuenta para el año), y puntúa alto contra la base de hoy.
+    expect(conVentana.sesiones.filter((s) => s.id.startsWith('ene-'))).toHaveLength(3);
+    const enero = conVentana.sesiones.find((s) => s.id === 'ene-0')!;
+    expect(enero.puntos).toBeGreaterThan(50);
+  });
+
+  it('la misma lista da los mismos puntos la procese quien la procese: la base es determinista', () => {
+    const lista = [0, 1, 2, 3, 4].map((i) =>
+      entrada({ id: `s${i}`, inicio: T0 - i * DIA, fin: T0 - i * DIA + (30 + i * 5) * MIN, pulsos: pulsos(30 + i * 5, 165, T0 - i * DIA) }),
+    );
+    const a = procesa(lista, MAXIMO, { baseDesde: T0 - 90 * DIA });
+    const b = procesa([...lista].reverse(), MAXIMO, { baseDesde: T0 - 90 * DIA });
+    expect(a.sesiones.map((s) => [s.id, s.puntos])).toEqual(b.sesiones.map((s) => [s.id, s.puntos]));
+  });
+
+  it('un resumen guardado manda sobre las muestras crudas y da las mismas zonas', () => {
+    const cruda = entrada({ id: 'c', pulsos: pulsos(45) });
+    const [desdeMuestras] = procesa([cruda], MAXIMO).sesiones;
+    // La misma sesión llegando del almacén: sin muestras, con su resumen.
+    const guardada = entrada({ id: 'c', pulsos: [], resumen: resumenDePulsos(pulsos(45)) });
+    const [desdeResumen] = procesa([guardada], MAXIMO).sesiones;
+    expect(desdeResumen.zonas).toEqual(desdeMuestras.zonas);
+    expect(desdeResumen.carga).toBe(desdeMuestras.carga);
+    expect(desdeResumen.fcMedia).toBe(desdeMuestras.fcMedia);
+    expect(desdeResumen.origen).toBe('medida');
   });
 });

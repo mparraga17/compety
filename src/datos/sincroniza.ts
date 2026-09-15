@@ -12,13 +12,21 @@ import {
 } from './ligas';
 import { HAY_SERVIDOR } from './supabase';
 import { entrenosParaPublicar, publicarEntrenos } from './feed';
-import { leeDeportes, leeEsfuerzos, leeMaximo, guardaMaximo } from './almacen';
+import {
+  guardaMaximo,
+  guardaResumen,
+  leeDeportes,
+  leeEsfuerzos,
+  leeMaximo,
+  leeResumenes,
+} from './almacen';
 import { deduplica, type SesionCruda } from '../motor/fusion';
 import { zDe } from '../motor/base';
 import { HORIZONTES, rankeaVentana, enVentana } from '../motor/ranking';
 import { procesa, type Resultado } from '../motor/sesiones';
-import { maximoDeReferencia } from '../motor/zonas';
-import { leerPulsosDeSesion, leerPulsosEntre, leerSesiones } from '../salud/lectura';
+import { inicioDeBase, inicioDeLectura, limiteAsentado } from '../motor/ventanas';
+import { RESUMEN_VACIO, maximoDeReferencia, resumenDePulsos } from '../motor/zonas';
+import { leerPulsosDeSesion, leerPulsosEntre, leerSesionesDesde } from '../salud/lectura';
 import { esTipoDeporte, tipoDe } from '../motor/actividades';
 
 /**
@@ -58,41 +66,76 @@ function esManual(sesion: unknown): boolean {
  * el guardado venia provisional se reintenta, para que en cuanto la persona apriete una vez las
  * intensidades dejen de estar aplanadas.
  */
-export async function calcula(dias = 30): Promise<Resultado> {
+/** Cuantas lecturas de HealthKit van a la vez. Es I/O local: 4 recorta la espera sin saturar. */
+const LECTURAS_A_LA_VEZ = 4;
+
+async function enLotes<T, R>(
+  elementos: readonly T[],
+  tamano: number,
+  fn: (x: T) => Promise<R>,
+): Promise<R[]> {
+  const resultados: R[] = [];
+  for (let i = 0; i < elementos.length; i += tamano) {
+    resultados.push(...(await Promise.all(elementos.slice(i, i + tamano).map(fn))));
+  }
+  return resultados;
+}
+
+export async function calcula(ahora: Date = new Date()): Promise<Resultado> {
   const almacen = almacenNativo();
 
   let maximo = await leeMaximo(almacen);
   if (maximo === null) {
-    const hace90 = new Date();
-    hace90.setDate(hace90.getDate() - 90);
-    const historico = await leerPulsosEntre(hace90, new Date());
+    const historico = await leerPulsosEntre(new Date(inicioDeBase(ahora)), ahora);
     const calculado = maximoDeReferencia(historico.map((p) => p.quantity));
     await guardaMaximo(almacen, calculado);
     maximo = { ...calculado, calculado: Date.now() };
   }
 
-  const sesiones = await leerSesiones(dias);
+  const sesiones = await leerSesionesDesde(inicioDeLectura(ahora));
+  const idDe = (s: (typeof sesiones)[number]) =>
+    s.uuid ?? `${s.startDate.getTime()}|${String(s.workoutActivityType)}`;
+  const asentadaAntesDe = limiteAsentado(ahora);
 
-  // Pulsos de cada sesion. Se lee por rango de horas, porque el vinculo con el entreno solo
+  // Pulsos de cada sesion. Se leen por rango de horas, porque el vinculo con el entreno solo
   // existe si la app que escribio los pulsos lo hizo, y el puente de Fitbit no lo hace.
-  const crudas: SesionCruda[] = [];
-  for (const s of sesiones) {
+  //
+  // ⭐ Y se leen UNA vez: las sesiones asentadas ya tienen su resumen guardado y no vuelven a
+  // HealthKit. En la primera lectura de un año entero se leen todas (una vez); despues, solo las
+  // de los ultimos dias. Sin esto, cada sincronizacion serian cientos de consultas.
+  const guardados = await leeResumenes(almacen, sesiones.map(idDe));
+
+  const crudas: SesionCruda[] = await enLotes(sesiones, LECTURAS_A_LA_VEZ, async (s) => {
+    const id = idDe(s);
     // ⛔ Tecleado a mano en Salud (`HKWasUserEntered`): no tiene pulso propio, asi que no se le
-    // cruzan los pulsos de ese rango (los midio otra cosa) y se ahorran las dos consultas.
-    // Puntua por estimacion o esfuerzo declarado, con su descuento. Regla de producto, 15 sep.
+    // cruzan los pulsos de ese rango (los midio otra cosa) y se ahorran las consultas. Puntua
+    // por estimacion o esfuerzo declarado, con su descuento. Regla de producto, 15 sep.
     const manual = esManual(s);
-    const pulsos = manual ? [] : await leerPulsosDeSesion(s);
-    crudas.push({
-      id: s.uuid ?? `${s.startDate.getTime()}|${String(s.workoutActivityType)}`,
+    const asentada = s.endDate.getTime() < asentadaAntesDe;
+
+    let resumen = manual ? RESUMEN_VACIO : guardados[id];
+    if (resumen === undefined) {
+      const pulsos = await leerPulsosDeSesion(s);
+      resumen = resumenDePulsos(
+        pulsos.map((p) => ({ valor: p.quantity, inicio: p.startDate, fin: p.endDate })),
+      );
+      // Solo se guarda lo asentado: una sesion de ayer puede recibir pulsos hoy.
+      if (asentada) await guardaResumen(almacen, id, resumen).catch(() => undefined);
+    }
+
+    return {
+      id,
       tipo: tipoDe(s.workoutActivityType),
       fuente: fuenteDe(s),
       inicio: s.startDate.getTime(),
       fin: s.endDate.getTime(),
       segundos: (s.endDate.getTime() - s.startDate.getTime()) / 1000,
-      pulsos: pulsos.map((p) => ({ valor: p.quantity, inicio: p.startDate, fin: p.endDate })),
+      // Las muestras crudas no viajan: el resumen ya lleva todo lo que el motor necesita.
+      pulsos: [],
+      resumen,
       manual,
-    });
-  }
+    };
+  });
 
   // Deduplicar es requisito del dia uno: Nike, Strava, Peloton y la pulsera escriben a la vez.
   const fusionadas = deduplica(crudas);
@@ -116,6 +159,9 @@ export async function calcula(dias = 30): Promise<Resultado> {
       };
     }),
     maximo.valor,
+    // La base personal es movil, de 90 dias, la lea quien la lea: los puntos de la pantalla y
+    // los que suben son los mismos. Las ventanas y su porque, en `motor/ventanas.ts`.
+    { baseDesde: inicioDeBase(ahora) },
   );
 }
 
@@ -137,7 +183,8 @@ export type Sincronizacion = {
  * datos y no se duplica nada.
  */
 export async function sincroniza(): Promise<Sincronizacion> {
-  const resultado = await calcula(30);
+  // El año entero (ver `inicioDeLectura`): es lo que hace anual a la clasificacion anual.
+  const resultado = await calcula();
 
   if (!HAY_SERVIDOR) {
     return { ligas: [], subidas: 0, avisos: 0, movimientos: [], soloLocal: true };

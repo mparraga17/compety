@@ -20,17 +20,21 @@ import { METRICAS_SALUD, type TipoLeible } from './tipos';
 export type Sesion = Awaited<ReturnType<typeof queryWorkoutSamples>>[number];
 export type MuestraCantidad = Awaited<ReturnType<typeof queryQuantitySamples>>[number];
 
-/** Sesiones de ejercicio de los ultimos N dias. */
-export async function leerSesiones(dias = 90): Promise<readonly Sesion[]> {
+/** Sesiones de ejercicio desde una fecha. Es la lectura del motor: un año, o 90 dias si es mas. */
+export async function leerSesionesDesde(desde: Date): Promise<readonly Sesion[]> {
   await preparar();
-
-  const desde = new Date();
-  desde.setDate(desde.getDate() - dias);
 
   return queryWorkoutSamples({
     limit: 0,
     filter: { date: { startDate: desde } },
   });
+}
+
+/** Sesiones de ejercicio de los ultimos N dias. */
+export async function leerSesiones(dias = 90): Promise<readonly Sesion[]> {
+  const desde = new Date();
+  desde.setDate(desde.getDate() - dias);
+  return leerSesionesDesde(desde);
 }
 
 /**

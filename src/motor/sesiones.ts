@@ -2,9 +2,9 @@ import { tipoDe } from './actividades';
 import { baseDeCarga, puntuaCarga, type Base } from './base';
 import { resuelveCarga, type Carga, type Paso } from './cargaSinFc';
 import { ligaDe, type IdLiga } from './ligas';
-import type { SesionFusionada } from './fusion';
+import { resumenDe, type SesionFusionada } from './fusion';
 import { esValida, type SesionPuntuada } from './ranking';
-import { calculaZonas, type Zonas } from './zonas';
+import { RESUMEN_VACIO, fcMediaDe, zonasDeResumen, type Zonas } from './zonas';
 
 /**
  * Ensamblaje del motor. Une lo que ya estaba suelto: zonas desde los pulsos, carga por la via
@@ -44,6 +44,11 @@ export type Sesion = SesionPuntuada & {
 export type Resultado = {
   sesiones: readonly Sesion[];
   base: Base;
+  /**
+   * Desde cuando (ms) entran las sesiones en la base personal. null si entraron todas. Las
+   * pantallas lo usan para acotar lo que enseñan a la misma ventana que define "tu normal".
+   */
+  baseDesde: number | null;
   /** Sesiones que no llegan al minimo de duracion o sin carga calculable. */
   descartadas: number;
   /** Cuantas puntuan sin pulso. Sirve para ofrecer el deslizador de esfuerzo. */
@@ -58,11 +63,6 @@ export type EntradaSesion = SesionFusionada & {
   rpe?: number | null;
 };
 
-function fcMediaDe(pulsos: readonly { valor: number }[]): number | null {
-  if (pulsos.length === 0) return null;
-  return Math.round(pulsos.reduce((a, p) => a + p.valor, 0) / pulsos.length);
-}
-
 /**
  * Primera pasada: zonas y carga. Los puntos todavia no, porque hace falta la base.
  */
@@ -74,7 +74,8 @@ function preparaSesion(entrada: EntradaSesion, maximo: number) {
   // por estimacion, con su descuento, nunca como "medida". Es la regla de producto (15 sep): no
   // puede puntuar igual un entreno con frecuencia cardiaca que uno sin ella, y el que se teclea
   // es, por definicion, uno sin ella. El deslizador de esfuerzo sigue disponible para mejorarlo.
-  const zonas = entrada.manual ? null : calculaZonas(entrada.pulsos, maximo);
+  const resumen = entrada.manual ? RESUMEN_VACIO : resumenDe(entrada);
+  const zonas = zonasDeResumen(resumen, maximo);
 
   const carga = resuelveCarga({
     tipo: tipo ?? '',
@@ -83,8 +84,21 @@ function preparaSesion(entrada: EntradaSesion, maximo: number) {
     rpe: entrada.rpe ?? null,
   });
 
-  return { entrada, tipo, minutos, zonas, carga };
+  return { entrada, tipo, minutos, zonas, carga, fcMedia: fcMediaDe(resumen) };
 }
+
+export type OpcionesProcesa = {
+  /**
+   * ⭐ Desde cuando (ms) cuentan las sesiones para la base personal. Las anteriores se PUNTUAN
+   * igual, contra esa base, pero no la definen.
+   *
+   * Existe porque el motor pasa a leer el año entero (para que la clasificacion anual sea de
+   * verdad anual) y "tu normal" no puede ser la media de enero: es lo que haces ultimamente. Con
+   * una ventana fija, la base es la misma la lea quien la lea (la pantalla o la sincronizacion),
+   * y los puntos que ves son los que suben.
+   */
+  baseDesde?: number;
+};
 
 /**
  * Procesa sesiones ya deduplicadas.
@@ -95,14 +109,17 @@ function preparaSesion(entrada: EntradaSesion, maximo: number) {
 export function procesa(
   entradas: readonly EntradaSesion[],
   maximo: number,
+  { baseDesde }: OpcionesProcesa = {},
 ): Resultado {
   const preparadas = entradas.map((e) => preparaSesion(e, maximo));
   const conCarga = preparadas.filter((p) => p.carga !== null);
 
   // Segunda pasada: base personal sobre la escala de carga real, y de ahi los puntos.
-  const base = baseDeCarga(conCarga.map((p) => p.carga!.valor));
+  const paraLaBase =
+    baseDesde === undefined ? conCarga : conCarga.filter((p) => p.entrada.inicio >= baseDesde);
+  const base = baseDeCarga(paraLaBase.map((p) => p.carga!.valor));
 
-  const sesiones: Sesion[] = conCarga.map(({ entrada, tipo, minutos, zonas, carga }) => {
+  const sesiones: Sesion[] = conCarga.map(({ entrada, tipo, minutos, zonas, carga, fcMedia }) => {
     const p = puntuaCarga(carga!.valor, base);
     return {
       id: entrada.id,
@@ -118,8 +135,8 @@ export function procesa(
       fuentes: entrada.fuentes,
       zonas,
       ritmo: entrada.ritmo ?? null,
-      // Sin pulso propio no hay media que enseñar: seria la de otra cosa.
-      fcMedia: entrada.manual ? null : fcMediaDe(entrada.pulsos),
+      // En un manual es null: sin pulso propio no hay media que enseñar, seria la de otra cosa.
+      fcMedia,
       metros: entrada.metros ?? null,
       kcal: entrada.kcal ?? null,
       origen: carga!.origen,
@@ -139,6 +156,7 @@ export function procesa(
   return {
     sesiones: sesiones.sort((a, b) => b.inicio - a.inicio),
     base,
+    baseDesde: baseDesde ?? null,
     descartadas: entradas.length - validas.length,
     sinPulso: validas.filter((s) => s.sinPulso).length,
   };

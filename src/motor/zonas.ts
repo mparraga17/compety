@@ -85,24 +85,46 @@ export type Zonas = {
 type Muestra = { valor: number; inicio: Date; fin: Date };
 
 /**
- * Reparte el tiempo de la sesion entre zonas.
+ * ⭐ Resumen de los pulsos de una sesion, INDEPENDIENTE del maximo de referencia.
+ *
+ * Existe para poder guardarlo: leer los pulsos de HealthKit es lo caro del motor (dos consultas
+ * por sesion), y con un año de historial son cientos. Guardar las zonas ya calculadas no vale,
+ * porque el maximo de referencia se recalcula cada semana y las dejaria obsoletas. Lo que si es
+ * estable es CUANTO tiempo se paso a cada pulso: con eso, las zonas para cualquier maximo salen
+ * en un bucle sobre ~100 entradas. `n` y `suma` son para la media, que no depende del reparto.
+ *
+ * ⚠️ El pulso se redondea al entero (1 lpm). Fitbit ya escribe enteros; si una fuente escribe
+ * decimales, la zona solo podria cambiar en un valor que caiga a menos de 0,5 lpm de un limite.
+ */
+export type ResumenPulsos = {
+  /** Numero de muestras. */
+  n: number;
+  /** Suma de los valores, para la media. */
+  suma: number;
+  /** Pares [lpm, segundos]: cuanto tiempo se paso a ese pulso. Orden libre. */
+  hist: readonly (readonly [number, number])[];
+};
+
+export const RESUMEN_VACIO: ResumenPulsos = { n: 0, suma: 0, hist: [] };
+
+/**
+ * De las muestras crudas al resumen.
  *
  * Cada muestra cubre el intervalo que va hasta la siguiente, con un tope para no inflar
  * huecos: si la pulsera dejo de medir 20 min, esos 20 min no cuentan como esfuerzo.
  * Con el hueco de 1 min medido en la practica, el tope apenas actua.
  */
-export function calculaZonas(
+export function resumenDePulsos(
   muestras: readonly Muestra[],
-  maximo: number,
   { huecoMaximoSegundos = 120 } = {},
-): Zonas | null {
-  if (muestras.length < 2 || maximo <= 0) return null;
-
-  const segundos: [number, number, number, number] = [0, 0, 0, 0];
+): ResumenPulsos {
+  const porLpm = new Map<number, number>();
+  let suma = 0;
 
   for (let i = 0; i < muestras.length; i++) {
     const actual = muestras[i];
     const siguiente = muestras[i + 1];
+    suma += actual.valor;
 
     const bruto = siguiente
       ? (siguiente.inicio.getTime() - actual.inicio.getTime()) / 1000
@@ -111,7 +133,26 @@ export function calculaZonas(
     const duracion = Math.min(Math.max(bruto, 0), huecoMaximoSegundos);
     if (duracion === 0) continue;
 
-    const fraccion = actual.valor / maximo;
+    const lpm = Math.round(actual.valor);
+    porLpm.set(lpm, (porLpm.get(lpm) ?? 0) + duracion);
+  }
+
+  return { n: muestras.length, suma, hist: [...porLpm.entries()] };
+}
+
+/** Media de pulso del resumen, redondeada. null sin muestras. */
+export function fcMediaDe(resumen: ResumenPulsos): number | null {
+  return resumen.n === 0 ? null : Math.round(resumen.suma / resumen.n);
+}
+
+/** Reparte el tiempo de la sesion entre zonas, a partir del resumen y del maximo de hoy. */
+export function zonasDeResumen(resumen: ResumenPulsos, maximo: number): Zonas | null {
+  if (resumen.n < 2 || maximo <= 0) return null;
+
+  const segundos: [number, number, number, number] = [0, 0, 0, 0];
+
+  for (const [lpm, duracion] of resumen.hist) {
+    const fraccion = lpm / maximo;
     // Por debajo del 50 % no cuenta como esfuerzo.
     if (fraccion < LIMITES[0]) continue;
 
@@ -134,4 +175,13 @@ export function calculaZonas(
     intensidad: totalSegundos > 0 ? +(trimp / (totalSegundos / 60)).toFixed(2) : null,
     maximoUsado: maximo,
   };
+}
+
+/** Zonas directamente desde las muestras. Es `zonasDeResumen(resumenDePulsos(...))`: un solo camino. */
+export function calculaZonas(
+  muestras: readonly Muestra[],
+  maximo: number,
+  opciones: { huecoMaximoSegundos?: number } = {},
+): Zonas | null {
+  return zonasDeResumen(resumenDePulsos(muestras, opciones), maximo);
 }

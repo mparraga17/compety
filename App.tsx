@@ -339,7 +339,9 @@ export default function App() {
   const cargarSalud = useCallback(async () => {
     setCalculando(true);
     try {
-      setResultado(await calcula(30));
+      // El año entero con base movil de 90 dias: lo mismo que sube la sincronizacion, para que
+      // los puntos que ves sean los que compiten. Ver `inicioDeLectura` en sincroniza.ts.
+      setResultado(await calcula());
     } catch {
       // Sin permisos o sin datos: las pantallas ya saben pintar el caso vacio.
       setResultado(null);
@@ -589,15 +591,23 @@ export default function App() {
 
   const formaActual = useMemo<Forma | null>(() => {
     if (resultado === null) return null;
+    // La forma compara la primera mitad del historial con la segunda, así que el historial que
+    // se le da define la pregunta. El motor trae el año entero (para la clasificación anual),
+    // pero "¿estoy más en forma?" se responde con los últimos meses: la misma ventana que la
+    // base personal. Un año entero mediría otra cosa, la tendencia de la temporada.
+    const recientes =
+      resultado.baseDesde === null
+        ? resultado.sesiones
+        : resultado.sesiones.filter((s) => s.inicio >= resultado.baseDesde!);
     // La liga con más sesiones comparables es la que da mejor señal.
-    const conRitmo = resultado.sesiones.filter((s) => s.ritmo !== null && s.fcMedia !== null);
+    const conRitmo = recientes.filter((s) => s.ritmo !== null && s.fcMedia !== null);
     const cuenta = new Map<string, number>();
     for (const s of conRitmo) {
       if (s.liga === null) continue;
       cuenta.set(s.liga, (cuenta.get(s.liga) ?? 0) + 1);
     }
     const mejor = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0];
-    return calculaForma(resultado.sesiones, {
+    return calculaForma(recientes, {
       liga: (mejor?.[0] ?? 'correr') as 'correr',
     });
   }, [resultado]);

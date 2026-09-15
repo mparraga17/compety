@@ -3,7 +3,9 @@ import {
   actualizaCuenta,
   almacenEnMemoria,
   guardaCuenta,
+  guardaResumen,
   leeCuenta,
+  leeResumenes,
   olvidaCuenta,
 } from './almacen';
 
@@ -63,5 +65,36 @@ describe('copia local de la cuenta', () => {
     await guardaCuenta(almacen, manuel);
     await olvidaCuenta(almacen);
     expect(await leeCuenta(almacen)).toBeNull();
+  });
+});
+
+/**
+ * El resumen de pulsos guardado por sesión es lo que evita releer un año de HealthKit. Lo que
+ * protegen estos tests: que lo guardado vuelva igual, y que nada raro (corrupto, de otra versión,
+ * con valores imposibles) se cuele en el motor: releer es siempre seguro, usar basura no.
+ */
+describe('resumen de pulsos guardado', () => {
+  const resumen = { n: 3, suma: 450, hist: [[150, 121] as const] as const };
+
+  test('lo que se guarda se lee igual, por id de sesión', async () => {
+    const almacen = almacenEnMemoria();
+    await guardaResumen(almacen, 's1', resumen);
+    expect(await leeResumenes(almacen, ['s1', 's2'])).toEqual({
+      s1: { n: 3, suma: 450, hist: [[150, 121]] },
+    });
+  });
+
+  test('corrupto, de otra versión o con valores imposibles se ignora', async () => {
+    const almacen = almacenEnMemoria({
+      [CLAVES.pulsos('rota')]: '{no es json',
+      [CLAVES.pulsos('vieja')]: JSON.stringify({ v: 0, n: 3, suma: 450, hist: [[150, 121]] }),
+      [CLAVES.pulsos('negativa')]: JSON.stringify({ v: 1, n: 3, suma: 450, hist: [[150, -5]] }),
+      [CLAVES.pulsos('nan')]: JSON.stringify({ v: 1, n: 'x', suma: 450, hist: [] }),
+    });
+    expect(await leeResumenes(almacen, ['rota', 'vieja', 'negativa', 'nan'])).toEqual({});
+  });
+
+  test('sin ids no consulta nada y devuelve vacío', async () => {
+    expect(await leeResumenes(almacenEnMemoria(), [])).toEqual({});
   });
 });

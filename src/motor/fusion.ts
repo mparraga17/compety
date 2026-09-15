@@ -1,3 +1,5 @@
+import { resumenDePulsos, type ResumenPulsos } from './zonas';
+
 /**
  * Fusion de sesiones duplicadas entre fuentes.
  *
@@ -29,6 +31,11 @@ export function esWearable(fuente: string | null | undefined): boolean {
   return PATRON_WEARABLE.test(fuente ?? '');
 }
 
+/** El resumen de pulsos de una sesion, venga guardado o haya que sacarlo de las muestras. */
+export function resumenDe(s: { pulsos: SesionCruda['pulsos']; resumen?: ResumenPulsos }): ResumenPulsos {
+  return s.resumen ?? resumenDePulsos(s.pulsos);
+}
+
 /** Sesion normalizada, ya independiente de HealthKit. */
 export type SesionCruda = {
   id: string;
@@ -40,6 +47,11 @@ export type SesionCruda = {
   segundos: number;
   /** Pulsos crudos de la sesion, si los hay. */
   pulsos: readonly { valor: number; inicio: Date; fin: Date }[];
+  /**
+   * Resumen de los pulsos (ver `ResumenPulsos`). Si viene, MANDA sobre `pulsos`: es como llegan
+   * las sesiones cuyos pulsos ya se leyeron otro dia y se guardaron, sin volver a HealthKit.
+   */
+  resumen?: ResumenPulsos;
   metros?: number | null;
   pasos?: number | null;
   kcal?: number | null;
@@ -193,7 +205,7 @@ export function fusiona(grupo: readonly SesionCruda[]): SesionFusionada {
     };
   }
 
-  const conPulso = grupo.filter((s) => s.pulsos.length > 0);
+  const conPulso = grupo.filter((s) => resumenDe(s).n > 0);
   // El corazon lo aporta quien lo mide. Si hay varios, manda el wearable.
   const corazon =
     conPulso.find((s) => esWearable(s.fuente)) ??

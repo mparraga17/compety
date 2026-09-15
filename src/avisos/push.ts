@@ -2,7 +2,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { HAY_SERVIDOR, supabase } from '../datos/supabase';
+import { HAY_SERVIDOR, supabase, usuarioActual } from '../datos/supabase';
 import { destinoDe, type DestinoAviso } from './destino';
 
 export type { DestinoAviso } from './destino';
@@ -80,9 +80,7 @@ export async function prepararPush(): Promise<EstadoPush> {
 export async function guardarToken(token: string): Promise<void> {
   if (!HAY_SERVIDOR) return;
 
-  const sesion = await supabase.auth.getSession();
-  const usuario = sesion.data.session?.user.id;
-  if (usuario === undefined) return;
+  const usuario = await usuarioActual();
 
   const { error } = await supabase.from('perfiles').update({ push_token: token }).eq('id', usuario);
   if (error) throw error;
@@ -100,9 +98,7 @@ export async function guardarToken(token: string): Promise<void> {
 export async function soltarToken(): Promise<void> {
   if (!HAY_SERVIDOR) return;
 
-  const sesion = await supabase.auth.getSession();
-  const usuario = sesion.data.session?.user.id;
-  if (usuario === undefined) return;
+  const usuario = await usuarioActual();
 
   const { error } = await supabase.from('perfiles').update({ push_token: null }).eq('id', usuario);
   if (error) throw error;

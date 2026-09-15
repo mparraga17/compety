@@ -24,6 +24,8 @@ export const CLAVES = {
   maximo: 'maximo',
   /** Que tipos de HealthKit tienen entrega en segundo plano configurada, con version. */
   observador: 'observador',
+  /** La cuenta propia tal y como se leyo por ultima vez del servidor. Ver `leeCuenta`. */
+  cuenta: 'cuenta',
   /**
    * Celebracion ya mostrada. La clave lleva el momento y su periodo (`oms:2026-09-07`), asi
    * cada logro se celebra UNA vez: una celebracion que reaparece cada vez que abres la app
@@ -181,6 +183,65 @@ export async function guardaMaximo(
     CLAVES.maximo,
     JSON.stringify({ ...maximo, calculado: Date.now() } satisfies MaximoGuardado),
   );
+}
+
+/**
+ * La cuenta propia, tal y como se leyo del servidor la ultima vez. Misma forma que `Cuenta` en
+ * `cuenta.ts`; se declara aqui aparte para que este fichero no importe nada y siga siendo puro.
+ */
+export type CuentaGuardada = {
+  id: string;
+  correo: string | null;
+  nombre: string | null;
+  usuario: string | null;
+};
+
+/**
+ * ⭐ Copia local de la cuenta, para arrancar sin red.
+ *
+ * Existe por un fallo real: al arrancar, un fallo de red al leer el perfil se confundia con
+ * "esta persona no tiene perfil" y la app mandaba a alguien con cuenta a la pantalla de alta.
+ * supabase-js ya guarda la SESION en el telefono; el perfil (nombre y usuario) no lo guardaba
+ * nadie, asi que sin servidor no habia forma de saber quien eres. Ahora, si hay sesion guardada
+ * y el servidor no responde, la app arranca con lo ultimo que supo de ti y la red se reintenta
+ * sola en la siguiente consulta.
+ *
+ * Se escribe cada vez que el perfil se lee o se cambia con exito, y se olvida al cerrar sesion
+ * (el borrado de cuenta lo barre `borrarTodoLocal`). Si se pasa `id`, la copia solo vale si es
+ * de esa misma persona: una copia de otra cuenta en el mismo telefono no se devuelve nunca.
+ */
+export async function leeCuenta(almacen: Almacen, id?: string): Promise<CuentaGuardada | null> {
+  const c = await leerJson<Partial<CuentaGuardada>>(almacen, CLAVES.cuenta);
+  if (c === null || typeof c.id !== 'string' || c.id.length === 0) return null;
+  if (id !== undefined && c.id !== id) return null;
+  return {
+    id: c.id,
+    correo: typeof c.correo === 'string' ? c.correo : null,
+    nombre: typeof c.nombre === 'string' ? c.nombre : null,
+    usuario: typeof c.usuario === 'string' ? c.usuario : null,
+  };
+}
+
+export async function guardaCuenta(almacen: Almacen, cuenta: CuentaGuardada): Promise<void> {
+  await almacen.guardar(CLAVES.cuenta, JSON.stringify(cuenta));
+}
+
+/**
+ * Actualiza nombre o usuario en la copia local tras cambiarlos en el servidor. Si no habia
+ * copia no inventa una: sin id no hay a quien atribuirsela, y la siguiente lectura con red la
+ * escribe entera.
+ */
+export async function actualizaCuenta(
+  almacen: Almacen,
+  cambios: Partial<Pick<CuentaGuardada, 'nombre' | 'usuario'>>,
+): Promise<void> {
+  const actual = await leeCuenta(almacen);
+  if (actual === null) return;
+  await guardaCuenta(almacen, { ...actual, ...cambios });
+}
+
+export async function olvidaCuenta(almacen: Almacen): Promise<void> {
+  await almacen.borrar(CLAVES.cuenta);
 }
 
 /** ¿Se celebró ya este momento? El id lleva el periodo dentro (`oms:2026-09-07`). */

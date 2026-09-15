@@ -336,6 +336,12 @@ const ES = {
   progresoPeor: 'Tu último %{deporte} fue más suave de lo habitual para ti. Tu normal va de %{min} a %{max} de carga.',
   sinServidorTexto:
     'No llegan las claves de Supabase. Si estás en desarrollo, casi siempre es que Metro arrancó sin recargar el .env.',
+  // Arranque con sesión guardada pero sin poder comprobarla. Se dice que la cuenta está, para
+  // que nadie crea que la ha perdido, y se ofrece reintentar.
+  sinConexionTitulo: 'Sin conexión',
+  sinConexionTexto:
+    'Tu cuenta sigue aquí, pero ahora mismo no llegamos al servidor. Comprueba la red y vuelve a intentarlo.',
+  reintentar: 'Reintentar',
   sinLiga: 'Tu primera liga está a un toque',
   sinLigaTexto:
     'Crea la tuya y reparte el código, o entra con el que te hayan pasado. En dos minutos estás compitiendo.',
@@ -780,6 +786,10 @@ const EN: Record<keyof typeof ES, string> = {
   progresoPeor: 'Your last %{deporte} was easier than usual for you. Your normal runs from %{min} to %{max} of load.',
   sinServidorTexto:
     'The Supabase keys are not reaching the app. In development it is almost always Metro starting without reloading .env.',
+  sinConexionTitulo: 'No connection',
+  sinConexionTexto:
+    'Your account is still here, but we cannot reach the server right now. Check your network and try again.',
+  reintentar: 'Try again',
   sinLiga: 'Your first league is one tap away',
   sinLigaTexto:
     'Create yours and share the code, or join with one you got. In two minutes you are competing.',

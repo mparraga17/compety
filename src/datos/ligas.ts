@@ -1,4 +1,4 @@
-import { HAY_SERVIDOR, supabase } from './supabase';
+import { HAY_SERVIDOR, supabase, usuarioActual } from './supabase';
 import type { IdHorizonte } from '../motor/ranking';
 
 /**
@@ -259,9 +259,9 @@ export async function subirPuntuacion(entrada: {
 }): Promise<void> {
   if (!HAY_SERVIDOR) return;
 
-  const sesion = await supabase.auth.getSession();
-  const usuario = sesion.data.session?.user.id;
-  if (usuario === undefined) return;
+  // Sin sesion LANZA, no vuelve en silencio: una puntuacion que no se puede subir tiene que
+  // fallar donde se ve, no contarse como subida.
+  const usuario = await usuarioActual();
 
   const { error } = await supabase.from('puntuaciones').upsert(
     {
@@ -393,9 +393,7 @@ export async function semanasGanadas(
 export async function cambiarAvisos(liga: string, avisos: boolean): Promise<void> {
   if (!HAY_SERVIDOR) return;
 
-  const sesion = await supabase.auth.getSession();
-  const usuario = sesion.data.session?.user.id;
-  if (usuario === undefined) return;
+  const usuario = await usuarioActual();
 
   const { error } = await supabase
     .from('miembros')

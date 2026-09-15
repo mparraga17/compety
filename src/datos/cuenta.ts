@@ -1,8 +1,10 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 
-import { borrarTodoLocal } from './almacenNativo';
+import { actualizaCuenta, guardaCuenta, leeCuenta, olvidaCuenta } from './almacen';
+import { almacenNativo, borrarTodoLocal } from './almacenNativo';
 import { borrarCuenta as borrarEnServidor } from './ligas';
-import { HAY_SERVIDOR, supabase } from './supabase';
+import { HAY_SERVIDOR, supabase, usuarioActual } from './supabase';
 import { soltarToken } from '../avisos/push';
 
 /**
@@ -40,29 +42,109 @@ export async function hayEntradaApple(): Promise<boolean> {
   return AppleAuthentication.isAvailableAsync();
 }
 
+/**
+ * Lee el perfil del servidor. LANZA si la consulta falla.
+ *
+ * ⛔⛔ Aqui estaba el fallo que mandaba a gente con cuenta a la pantalla de alta. Se ignoraba
+ * `error`, asi que un fallo de red devolvia `nombre: null`, que para el arranque significa
+ * "no ha terminado el alta". Un fallo de red no es un estado del perfil: se propaga, y quien
+ * llama decide (ver `sesionActual`). `data === null` sin error SI significa que no hay fila.
+ *
+ * Al leer bien se guarda una copia local, que es lo que permite arrancar sin red la proxima vez.
+ */
 async function perfilDe(id: string, correo: string | null): Promise<Cuenta> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('perfiles')
     .select('nombre, usuario')
     .eq('id', id)
     .maybeSingle();
+  if (error) throw error;
 
-  return {
+  const cuenta: Cuenta = {
     id,
     correo,
     nombre: (data?.nombre as string | undefined) ?? null,
     usuario: (data?.usuario as string | undefined) ?? null,
   };
+  // La copia es una comodidad, no la verdad: si el almacen falla, la cuenta sigue valiendo.
+  await guardaCuenta(almacenNativo(), cuenta).catch(() => undefined);
+  return cuenta;
 }
 
-export async function sesionActual(): Promise<Cuenta | null> {
-  if (!HAY_SERVIDOR) return null;
+/**
+ * Resultado de comprobar la sesion al arrancar. Tres casos, y la diferencia entre el segundo y
+ * el tercero es la que importa:
+ *
+ *   `sin-sesion`      nadie ha entrado, o la sesion murio de verdad (revocada, cuenta borrada).
+ *                     Lo correcto es la pantalla de entrar.
+ *   `cuenta`          hay sesion y se sabe quien eres. Puede venir del servidor o, sin red, de
+ *                     la copia local.
+ *   `sin-comprobar`   hay sesion guardada pero el servidor no responde y no hay copia local.
+ *                     Mandar a entrar aqui seria mentir: la persona tiene cuenta. Se reintenta.
+ */
+export type EstadoSesion =
+  | { tipo: 'sin-sesion' }
+  | { tipo: 'cuenta'; cuenta: Cuenta }
+  | { tipo: 'sin-comprobar'; error: unknown };
 
-  const { data } = await supabase.auth.getSession();
+/**
+ * ⚠️ Verificado en el codigo de supabase-js (GoTrueClient, `__loadSession`): cuando el token de
+ * acceso ha caducado y la renovacion falla por RED, `getSession()` devuelve `session: null` con
+ * un error reintentable, pero la sesion SIGUE guardada en el telefono. O sea que "session null"
+ * no significa "sin sesion": hay que mirar el error. Sin esto, abrir la app tras una hora sin
+ * cobertura te devolvia a "Entrar con Apple".
+ */
+export async function sesionActual(): Promise<EstadoSesion> {
+  if (!HAY_SERVIDOR) return { tipo: 'sin-sesion' };
+  const almacen = almacenNativo();
+
+  const { data, error } = await supabase.auth.getSession();
   const usuario = data.session?.user;
-  if (usuario === undefined) return null;
 
-  return perfilDe(usuario.id, usuario.email ?? null);
+  if (usuario === undefined) {
+    if (error !== null && isAuthRetryableFetchError(error)) {
+      // Sesion guardada que no se pudo renovar sin red. Con copia local se arranca con ella;
+      // la sesion se renueva sola en la primera consulta que encuentre red.
+      const guardada = await leeCuenta(almacen).catch(() => null);
+      if (guardada !== null) return { tipo: 'cuenta', cuenta: guardada };
+      return { tipo: 'sin-comprobar', error };
+    }
+    // Sin sesion, o muerta de verdad. La copia local, si queda, es de otra vida: fuera.
+    await olvidaCuenta(almacen).catch(() => undefined);
+    return { tipo: 'sin-sesion' };
+  }
+
+  try {
+    return { tipo: 'cuenta', cuenta: await perfilDe(usuario.id, usuario.email ?? null) };
+  } catch (e) {
+    // Hay sesion pero el perfil no se pudo leer. La copia local vale SOLO si es de esta misma
+    // persona; nunca se arranca con la cuenta de otra que uso el telefono antes.
+    const guardada = await leeCuenta(almacen, usuario.id).catch(() => null);
+    if (guardada !== null) {
+      return { tipo: 'cuenta', cuenta: { ...guardada, correo: usuario.email ?? guardada.correo } };
+    }
+    return { tipo: 'sin-comprobar', error: e };
+  }
+}
+
+/**
+ * Avisa cuando la sesion se cierra, por la via que sea: cerrar sesion, borrar la cuenta, o que
+ * supabase-js la de por muerta (token revocado, cuenta borrada desde otro sitio).
+ *
+ * ⛔ Sin esto la app seguia "dentro" con una sesion muerta: cada subida hacia `return` en
+ * silencio al no encontrar usuario, el contador de subidas seguia sumando y el segundo plano
+ * decia que todo iba bien. Las puntuaciones dejaban de subir para siempre sin ninguna señal.
+ *
+ * Devuelve la funcion para dejar de escuchar.
+ */
+export function alCerrarseSesion(alCerrar: () => void): () => void {
+  if (!HAY_SERVIDOR) return () => undefined;
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((evento) => {
+    if (evento === 'SIGNED_OUT') alCerrar();
+  });
+  return () => subscription.unsubscribe();
 }
 
 /**
@@ -105,14 +187,22 @@ export async function entrarConApple(): Promise<Cuenta | null> {
   // Solo llega en el primer login. Se usa como sugerencia del nombre visible.
   const sugerido = credencial.fullName?.givenName ?? null;
   if (sugerido !== null) {
-    const { data: previo } = await supabase
+    const { data: previo, error: errorPrevio } = await supabase
       .from('perfiles')
       .select('id')
       .eq('id', id)
       .maybeSingle();
+    // Mismo criterio que `perfilDe`: un fallo al consultar no es "no existe". Se propaga y la
+    // pantalla de entrar lo enseña; sin red no se puede completar el alta de todas formas.
+    if (errorPrevio) throw errorPrevio;
 
     if (previo === null) {
-      await supabase.from('perfiles').insert({ id, nombre: sugerido.slice(0, 40) });
+      const { error: errorAlta } = await supabase
+        .from('perfiles')
+        .insert({ id, nombre: sugerido.slice(0, 40) });
+      // 23505 = ya existe: otro dispositivo se adelanto entre la consulta y el alta. No es un
+      // fallo, el perfil esta. Cualquier otro error si lo es.
+      if (errorAlta && errorAlta.code !== '23505') throw errorAlta;
     }
   }
 
@@ -126,14 +216,14 @@ export async function entrarConApple(): Promise<Cuenta | null> {
 export async function guardarNombre(nombre: string): Promise<void> {
   if (!HAY_SERVIDOR) return;
 
-  const { data } = await supabase.auth.getSession();
-  const id = data.session?.user.id;
-  if (id === undefined) throw new Error('sin sesion');
+  const id = await usuarioActual();
 
   const { error } = await supabase
     .from('perfiles')
     .upsert({ id, nombre: nombre.trim() }, { onConflict: 'id' });
   if (error) throw error;
+  // La copia local sigue a la verdad del servidor. Best-effort, como al leer.
+  await actualizaCuenta(almacenNativo(), { nombre: nombre.trim() }).catch(() => undefined);
 }
 
 export async function salir(): Promise<void> {
@@ -143,7 +233,14 @@ export async function salir(): Promise<void> {
   // error: cerrar sesion dejando el token vivo seguiria mandando avisos con nombres y puntos
   // de tus ligas a un telefono que ya no es tuyo. Reintentar con red es el camino.
   await soltarToken();
-  await supabase.auth.signOut();
+  // ⚠️ `signOut` devuelve el error en vez de lanzarlo, y sin red NO borra la sesion local
+  // (verificado en `_signOut`: solo la borra si el servidor respondio o si el fallo es 401/403/
+  // 404). Ignorarlo hacia que "cerrar sesion" pareciera funcionar y al siguiente arranque la
+  // persona siguiera dentro. Se propaga por lo mismo que el token: mejor un error visible que
+  // un cierre de sesion que no cierra nada.
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+  await olvidaCuenta(almacenNativo()).catch(() => undefined);
 }
 
 /**

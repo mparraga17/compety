@@ -1,3 +1,5 @@
+import { actualizaCuenta } from './almacen';
+import { almacenNativo } from './almacenNativo';
 import { HAY_SERVIDOR, supabase } from './supabase';
 
 /**
@@ -56,6 +58,8 @@ export async function elegirUsuario(usuario: string): Promise<void> {
 
   const { error } = await supabase.rpc('elegir_usuario', { p_usuario: limpio });
   if (error) throw error;
+  // La copia local de la cuenta (para arrancar sin red) sigue a la verdad del servidor.
+  await actualizaCuenta(almacenNativo(), { usuario: limpio }).catch(() => undefined);
 }
 
 /**

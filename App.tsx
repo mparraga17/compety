@@ -12,7 +12,7 @@ import { Pestanas, type IdPestana } from './src/componentes/Pestanas';
 import { Pulsable } from './src/componentes/Pulsable';
 import { guardaDeporte, guardaEsfuerzo, marcaCelebrado, yaCelebrado } from './src/datos/almacen';
 import { almacenNativo } from './src/datos/almacenNativo';
-import { sesionActual, type Cuenta } from './src/datos/cuenta';
+import { alCerrarseSesion, sesionActual, type Cuenta, type EstadoSesion } from './src/datos/cuenta';
 import { codigoDeUrl } from './src/datos/enlaces';
 import { misLigas, type LigaRemota, type Movimiento } from './src/datos/ligas';
 import { calcula } from './src/datos/sincroniza';
@@ -69,7 +69,12 @@ import { tema } from './src/tema';
  * apilar tres hojas de permiso del sistema seguidas.
  */
 
-type Fase = 'comprobando' | 'bienvenida' | 'entrar' | 'dentro';
+/**
+ * `sin-conexion`: hay sesion guardada pero el servidor no respondio y no hay copia local de la
+ * cuenta. Solo pasa la primera vez que se arranca sin red tras instalar (o tras esta version):
+ * en cuanto el perfil se lee una vez con red, la copia local permite arrancar sin ella.
+ */
+type Fase = 'comprobando' | 'bienvenida' | 'entrar' | 'sin-conexion' | 'dentro';
 type IdModal = 'amigos' | 'perfil' | 'crear-liga' | 'entrar-liga' | 'zona' | 'diagnostico';
 
 /** Lo que se celebra en pantalla. null = nada abierto. */
@@ -399,39 +404,91 @@ export default function App() {
     }
   }, []);
 
-  // Arranque: permisos de salud y sesion.
-  useEffect(() => {
-    (async () => {
-      let permisos = false;
-      try {
-        permisos = (await estadoPermisos()).tipo === 'preguntado';
-      } catch {
-        permisos = false;
-      }
-      if (!permisos) {
-        setFase('bienvenida');
-        return;
-      }
+  /**
+   * Arranque: permisos de salud y sesion. Es una funcion y no solo un efecto porque la pantalla
+   * de "sin conexion" la vuelve a llamar al reintentar.
+   *
+   * ⛔⛔ Aqui vivia el fallo que expulsaba al alta a gente con cuenta. `sesionActual()` devolvia
+   * `null` tanto si no habia sesion como si la habia y el servidor no respondio, y las dos cosas
+   * acababan en `setFase('entrar')`: la persona veia "Entrar con Apple", creia haber perdido su
+   * cuenta y podia acabar creando ligas duplicadas. Ahora los tres casos van por separado.
+   */
+  const arrancar = useCallback(async () => {
+    setFase('comprobando');
+    let permisos = false;
+    try {
+      permisos = (await estadoPermisos()).tipo === 'preguntado';
+    } catch {
+      permisos = false;
+    }
+    if (!permisos) {
+      setFase('bienvenida');
+      return;
+    }
 
-      if (!HAY_SERVIDOR) {
-        setFase('dentro');
-        void cargarSalud();
-        return;
-      }
-
-      // Se vuelve a `entrar` si falta cualquiera de los dos nombres: el visible o el de usuario.
-      // La propia pantalla salta los pasos que ya esten hechos.
-      const c = await sesionActual().catch(() => null);
-      if (c === null || c.nombre === null || c.usuario === null) {
-        setFase('entrar');
-        return;
-      }
-      setCuenta(c);
-      await cargarLigas();
+    if (!HAY_SERVIDOR) {
       setFase('dentro');
       void cargarSalud();
-    })();
+      return;
+    }
+
+    const estado = await sesionActual().catch(
+      (error: unknown): EstadoSesion => ({ tipo: 'sin-comprobar', error }),
+    );
+    if (estado.tipo === 'sin-sesion') {
+      setFase('entrar');
+      return;
+    }
+    if (estado.tipo === 'sin-comprobar') {
+      // Hay sesion guardada y no se pudo comprobar. No se afirma nada: ni "entra" ni "dentro".
+      setFase('sin-conexion');
+      return;
+    }
+
+    // Se vuelve a `entrar` si falta cualquiera de los dos nombres: el visible o el de usuario.
+    // La propia pantalla salta los pasos que ya esten hechos.
+    const c = estado.cuenta;
+    if (c.nombre === null || c.usuario === null) {
+      setFase('entrar');
+      return;
+    }
+    setCuenta(c);
+    await cargarLigas();
+    setFase('dentro');
+    void cargarSalud();
   }, [cargarLigas, cargarSalud]);
+
+  useEffect(() => {
+    void arrancar();
+  }, [arrancar]);
+
+  /**
+   * Vuelta al principio: cerrar sesion, borrar la cuenta, o que la sesion muera sola.
+   *
+   * Es una sola funcion para que los tres caminos dejen la app en el MISMO estado. Antes solo
+   * existia inline en `onFuera` del perfil, y la sesion que moria sola (token revocado, cuenta
+   * borrada desde otro dispositivo) no pasaba por ahi: la app seguia "dentro" sin poder subir
+   * nada y sin decirlo.
+   */
+  const fueraDeLaCuenta = useCallback(() => {
+    setCuenta(null);
+    setLigas([]);
+    setResultado(null);
+    setModales([]);
+    setFase('entrar');
+  }, []);
+
+  // ⚠️ Solo reacciona estando dentro. supabase-js tambien emite SIGNED_OUT al descubrir una
+  // sesion muerta durante el propio arranque, y ahi `arrancar` ya ha decidido a donde ir.
+  const faseRef = useRef<Fase>('comprobando');
+  useEffect(() => {
+    faseRef.current = fase;
+  }, [fase]);
+  useEffect(() => {
+    return alCerrarseSesion(() => {
+      if (faseRef.current === 'dentro') fueraDeLaCuenta();
+    });
+  }, [fueraDeLaCuenta]);
 
   const cargarMetricas = useCallback(async () => {
     setCargandoMetricas(true);
@@ -645,6 +702,23 @@ export default function App() {
 
       {fase === 'entrar' && <Entrar onDentro={(c) => void entrarDentro(c)} />}
 
+      {fase === 'sin-conexion' && (
+        /*
+          Hay cuenta y no se pudo comprobar. Se dice eso, literalmente, y se ofrece reintentar.
+          Ni la pantalla de entrar (mentiria: la sesion existe) ni "dentro" a ciegas (no se sabe
+          ni el nombre). Es la unica pantalla nueva del arreglo y solo aparece la primera vez que
+          se arranca sin red antes de tener copia local de la cuenta.
+        */
+        <View style={[s.centro, s.sinConexion]}>
+          <Marca lado={72} />
+          <Text style={s.sinConexionTitulo}>{t.sinConexionTitulo}</Text>
+          <Text style={s.sinConexionTexto}>{t.sinConexionTexto}</Text>
+          <Pulsable style={s.boton} accessibilityRole="button" onPress={() => void arrancar()}>
+            <Text style={s.botonTexto}>{t.reintentar}</Text>
+          </Pulsable>
+        </View>
+      )}
+
       {/* ── Dentro: las cinco pestañas ──────────────────────────────────────── */}
       {fase === 'dentro' && (
         <>
@@ -774,14 +848,8 @@ export default function App() {
                 // repinta también la barra de pestañas y el resto de la app.
                 onIdioma={() => setIdioma(idiomaActual())}
                 onAmigos={() => abrirModal('amigos')}
-                onFuera={() => {
-                  // Cerrar sesion o borrar cuenta: se limpia todo y se vuelve al principio.
-                  setCuenta(null);
-                  setLigas([]);
-                  setResultado(null);
-                  setModales([]);
-                  setFase('entrar');
-                }}
+                // Cerrar sesion o borrar cuenta: se limpia todo y se vuelve al principio.
+                onFuera={fueraDeLaCuenta}
               />
             </>
           )}
@@ -879,4 +947,25 @@ const s = StyleSheet.create({
     paddingTop: tema.espacio.m,
   },
   volverTexto: { ...tema.tipo.cuerpo, color: tema.color.marca },
+  // Pantalla de "sin conexion". Mismo lenguaje que los estados vacios de Ligas: titulo grande
+  // porque no compite con ninguna cifra, texto suave, un boton de marca.
+  sinConexion: { padding: tema.espacio.l, gap: tema.espacio.m },
+  sinConexionTitulo: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: tema.color.texto,
+    textAlign: 'center',
+    marginTop: tema.espacio.m,
+  },
+  sinConexionTexto: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, textAlign: 'center' },
+  boton: {
+    backgroundColor: tema.color.marca,
+    minHeight: tema.tactil,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: tema.espacio.l,
+    borderRadius: tema.radio.m,
+    marginTop: tema.espacio.s,
+  },
+  botonTexto: { ...tema.tipo.cuerpo, color: tema.color.fondo, fontWeight: '600' },
 });

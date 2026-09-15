@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, isAuthRetryableFetchError } from '@supabase/supabase-js';
 
 /**
  * Cliente de Supabase.
@@ -32,3 +32,26 @@ export const supabase = createClient(url || 'http://localhost', clave || 'sin-cl
     detectSessionInUrl: false,
   },
 });
+
+/**
+ * Id de la persona con sesion. LANZA si no la hay.
+ *
+ * ⛔ Sustituye al patron `if (usuario === undefined) return;` que habia en cinco sitios. Ese
+ * `return` silencioso era el fallo: con la sesion muerta, subir una puntuacion "terminaba bien"
+ * sin subir nada, el contador de subidas seguia sumando y el segundo plano daba por buena una
+ * sincronizacion que no habia hecho nada. Una escritura que no puede hacerse tiene que fallar
+ * donde se ve.
+ *
+ * Distingue dos causas, porque `mensajeDe` las cuenta distinto:
+ *   - sin red al renovar el token (`getSession` devuelve la sesion a null CON un error
+ *     reintentable, verificado en supabase-js): se propaga ese error → "Sin conexión".
+ *   - sin sesion de verdad: "hace falta sesion", el mismo texto que usan las funciones SQL, que
+ *     `mensajeDe` ya traduce a "Tienes que entrar de nuevo".
+ */
+export async function usuarioActual(): Promise<string> {
+  const { data, error } = await supabase.auth.getSession();
+  const id = data.session?.user.id;
+  if (id !== undefined) return id;
+  if (error !== null && isAuthRetryableFetchError(error)) throw error;
+  throw new Error('hace falta sesion');
+}

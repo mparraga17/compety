@@ -137,6 +137,8 @@ const ES = {
   sinPulsoEtiqueta: 'sin pulso',
   tagFusionada: 'FUSIONADA',
   tagSinPulso: 'SIN PULSO',
+  // Entreno tecleado en la app Salud. Puntúa por estimación o esfuerzo declarado, nunca por pulso.
+  tagManual: 'A MANO',
   // Marca las sesiones que entran en el top de la semana. Sin esto el ranking parece arbitrario:
   // ves siete cifras y un total que no es su suma.
   tagCuenta: 'CUENTA',
@@ -617,6 +619,7 @@ const EN: Record<keyof typeof ES, string> = {
   sinPulsoEtiqueta: 'no heart rate',
   tagFusionada: 'MERGED',
   tagSinPulso: 'NO HR',
+  tagManual: 'MANUAL',
   tagCuenta: 'COUNTS',
 
   // ── Detalle de sesión ────────────────────────────────────────────────────

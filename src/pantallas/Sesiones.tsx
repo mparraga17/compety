@@ -352,7 +352,15 @@ export function Sesiones({ resultado, cargando, onRecargar, onDeclararEsfuerzo, 
                     {ses.ids.length > 1 && (
                       <Text style={[s.tag, s.tagFusion]}>{t.tagFusionada}</Text>
                     )}
-                    {ses.sinPulso && <Text style={[s.tag, s.tagAviso]}>{t.tagSinPulso}</Text>}
+                    {/*
+                      A MANO sustituye a SIN PULSO, no se suma: un entreno tecleado no tiene pulso
+                      por definición, y dos etiquetas dirían lo mismo dos veces.
+                    */}
+                    {ses.manual ? (
+                      <Text style={[s.tag, s.tagAviso]}>{t.tagManual}</Text>
+                    ) : (
+                      ses.sinPulso && <Text style={[s.tag, s.tagAviso]}>{t.tagSinPulso}</Text>
+                    )}
                   </View>
 
                   <Text style={s.detalle}>

@@ -233,6 +233,69 @@ describe('fusiona: cada campo lo aporta quien lo mide mejor', () => {
   });
 });
 
+/**
+ * ⛔ Entrenos tecleados a mano en Salud (`HKWasUserEntered`). Regla de producto (15 sep): un
+ * manual cuenta SOLO cuando ningún dispositivo grabó ese rato. Sin ella, teclear "3 h de carrera"
+ * encima de una carrera real de 45 min la fusionaba (mismo tipo) y `segundos = max` la convertía
+ * en 3 h con la intensidad REAL del pulso: el camino más barato para inflar la puntuación.
+ */
+describe('entrenos a mano', () => {
+  const real = sesion({
+    id: 'fitbit',
+    fuente: 'Fitbit',
+    inicio: T0,
+    fin: T0 + 45 * MIN,
+    pulsos: conPulsos(),
+    metros: 8000,
+  });
+  const tecleada = sesion({
+    id: 'salud',
+    fuente: 'Salud',
+    manual: true,
+    inicio: T0 - 30 * MIN,
+    fin: T0 + 150 * MIN, // "3 h", encima de la real.
+    metros: 30000,
+  });
+
+  it('un manual encima de un registro real no alarga, no suma distancia y no cambia nada', () => {
+    const [f] = deduplica([real, tecleada]);
+    expect(deduplica([real, tecleada])).toHaveLength(1);
+    expect(f.manual).toBe(false);
+    expect(f.inicio).toBe(T0);
+    expect(f.fin).toBe(T0 + 45 * MIN);
+    expect(f.segundos).toBe(45 * 60);
+    expect(f.metros).toBe(8000);
+    expect(f.pulsos).toBe(real.pulsos);
+    // Pero queda constancia: su id no vuelve a tratarse y su fuente se ve.
+    expect([...f.ids].sort()).toEqual(['fitbit', 'salud']);
+    expect([...f.fuentes].sort()).toEqual(['Fitbit', 'Salud']);
+    expect(f.fusionada).toBe(true);
+  });
+
+  it('un manual solo sí cuenta, y se marca como manual', () => {
+    const [f] = deduplica([tecleada]);
+    expect(f.manual).toBe(true);
+    expect(f.fusionada).toBe(false);
+    expect(f.segundos).toBe(180 * 60);
+  });
+
+  it('dos manuales solapados se fusionan entre sí como cualquier par, y siguen siendo manuales', () => {
+    const otra = sesion({ id: 'salud-2', fuente: 'Salud', manual: true, inicio: T0, fin: T0 + 60 * MIN });
+    const [f] = deduplica([tecleada, otra]);
+    expect(f.manual).toBe(true);
+    expect(f.ids).toHaveLength(2);
+  });
+
+  it('el manual tampoco decide el tipo cuando hay registro real', () => {
+    // Fitbit lo grabó como "otro" y la persona tecleó "correr" encima: el tipo concreto del
+    // manual NO se impone. Mejor un "otro" corregible a mano que un tipo dictado por quien
+    // podría estar inflando.
+    const otro = sesion({ id: 'fitbit', tipo: 'SPORT', fuente: 'Fitbit', pulsos: conPulsos() });
+    const [f] = deduplica([otro, sesion({ id: 'salud', tipo: 'RUNNING', fuente: 'Salud', manual: true })]);
+    expect(f.tipo).toBe('SPORT');
+  });
+});
+
 describe('deduplica', () => {
   it('devuelve de la más reciente a la más antigua', () => {
     const r = deduplica([

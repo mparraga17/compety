@@ -37,6 +37,8 @@ export type Sesion = SesionPuntuada & {
   aproximado: boolean;
   /** Ids originales antes de fusionar. Evita notificar dos veces la misma sesion. */
   ids: readonly string[];
+  /** true si el entreno se tecleo en Salud y ningun dispositivo lo grabo. Puntua sin pulso. */
+  manual: boolean;
 };
 
 export type Resultado = {
@@ -67,7 +69,12 @@ function fcMediaDe(pulsos: readonly { valor: number }[]): number | null {
 function preparaSesion(entrada: EntradaSesion, maximo: number) {
   const tipo = entrada.tipo ?? tipoDe(entrada.actividad);
   const minutos = entrada.segundos / 60;
-  const zonas = calculaZonas(entrada.pulsos, maximo);
+  // ⛔ Un entreno tecleado a mano NO tiene pulso propio: los pulsos de ese rango de horas los
+  // midio otra cosa. Se ignoran aunque lleguen, asi que la carga sale por esfuerzo declarado o
+  // por estimacion, con su descuento, nunca como "medida". Es la regla de producto (15 sep): no
+  // puede puntuar igual un entreno con frecuencia cardiaca que uno sin ella, y el que se teclea
+  // es, por definicion, uno sin ella. El deslizador de esfuerzo sigue disponible para mejorarlo.
+  const zonas = entrada.manual ? null : calculaZonas(entrada.pulsos, maximo);
 
   const carga = resuelveCarga({
     tipo: tipo ?? '',
@@ -111,7 +118,8 @@ export function procesa(
       fuentes: entrada.fuentes,
       zonas,
       ritmo: entrada.ritmo ?? null,
-      fcMedia: fcMediaDe(entrada.pulsos),
+      // Sin pulso propio no hay media que enseñar: seria la de otra cosa.
+      fcMedia: entrada.manual ? null : fcMediaDe(entrada.pulsos),
       metros: entrada.metros ?? null,
       kcal: entrada.kcal ?? null,
       origen: carga!.origen,
@@ -122,6 +130,7 @@ export function procesa(
         { clave: 'contraTuBase' as const, datos: p.datos ?? {} },
       ],
       aproximado: carga!.aproximado === true,
+      manual: entrada.manual,
     };
   });
 

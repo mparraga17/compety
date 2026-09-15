@@ -41,6 +41,17 @@ function fuenteDe(sesion: unknown): string {
 }
 
 /**
+ * ¿Lo tecleo la persona en la app Salud? HealthKit lo marca con `HKWasUserEntered` en los
+ * metadatos (verificado en los tipos generados de la libreria: `KnownObjectMetadata`). Se
+ * compara con `true` a proposito: HealthKit lo guarda como booleano, pero un valor raro o ausente
+ * significa "grabado", que es el caso normal.
+ */
+function esManual(sesion: unknown): boolean {
+  const s = sesion as { metadata?: { HKWasUserEntered?: unknown } };
+  return s.metadata?.HKWasUserEntered === true;
+}
+
+/**
  * Lee HealthKit y devuelve las sesiones ya puntuadas.
  *
  * ⚠️ El maximo de referencia se cachea, porque recalcularlo exige releer 90 dias de pulsos. Si
@@ -66,7 +77,11 @@ export async function calcula(dias = 30): Promise<Resultado> {
   // existe si la app que escribio los pulsos lo hizo, y el puente de Fitbit no lo hace.
   const crudas: SesionCruda[] = [];
   for (const s of sesiones) {
-    const pulsos = await leerPulsosDeSesion(s);
+    // ⛔ Tecleado a mano en Salud (`HKWasUserEntered`): no tiene pulso propio, asi que no se le
+    // cruzan los pulsos de ese rango (los midio otra cosa) y se ahorran las dos consultas.
+    // Puntua por estimacion o esfuerzo declarado, con su descuento. Regla de producto, 15 sep.
+    const manual = esManual(s);
+    const pulsos = manual ? [] : await leerPulsosDeSesion(s);
     crudas.push({
       id: s.uuid ?? `${s.startDate.getTime()}|${String(s.workoutActivityType)}`,
       tipo: tipoDe(s.workoutActivityType),
@@ -75,6 +90,7 @@ export async function calcula(dias = 30): Promise<Resultado> {
       fin: s.endDate.getTime(),
       segundos: (s.endDate.getTime() - s.startDate.getTime()) / 1000,
       pulsos: pulsos.map((p) => ({ valor: p.quantity, inicio: p.startDate, fin: p.endDate })),
+      manual,
     });
   }
 

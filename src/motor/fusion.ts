@@ -45,6 +45,12 @@ export type SesionCruda = {
   kcal?: number | null;
   /** Segundos por metro. */
   ritmo?: number | null;
+  /**
+   * true si la persona TECLEO el entreno en la app Salud (`HKWasUserEntered`), en vez de
+   * grabarlo un dispositivo o una app. Un entreno a mano no tiene frecuencia cardiaca propia:
+   * lo que haya en ese rango de horas lo midio otra cosa, no ese entreno.
+   */
+  manual?: boolean;
 };
 
 export type SesionFusionada = SesionCruda & {
@@ -52,6 +58,8 @@ export type SesionFusionada = SesionCruda & {
   fusionada: boolean;
   /** Ids originales que se unieron. Sirve para no notificar dos veces lo mismo. */
   ids: readonly string[];
+  /** true solo si TODO lo que se fusiono era a mano. Con un registro automatico dentro, false. */
+  manual: boolean;
 };
 
 /** Solape minimo respecto a la sesion mas corta para considerarlas la misma. */
@@ -150,10 +158,39 @@ function tipoDelGrupo(grupo: readonly SesionCruda[]): string | null {
   return concretas.reduce((mejor, s) => (s.fin - s.inicio > mejor.fin - mejor.inicio ? s : mejor)).tipo;
 }
 
-/** Une un grupo en una sesion: cada campo lo aporta quien lo mide mejor. */
+/**
+ * Une un grupo en una sesion: cada campo lo aporta quien lo mide mejor.
+ *
+ * ⛔ REGLA DE LOS ENTRENOS A MANO (decision de producto, 15 sep): un entreno tecleado en Salud
+ * cuenta SOLO cuando ningun dispositivo ni app grabo ese rato. Si hay un registro automatico en
+ * el grupo, el manual no aporta ningun campo: ni alarga la duracion, ni sube la distancia, ni
+ * cambia el tipo. Sin esta regla, teclear "3 h de carrera" encima de una carrera real de 45 min
+ * la fusionaba (mismo tipo) y `segundos = max` la convertia en una sesion de 3 h con la
+ * intensidad REAL del pulso: el camino mas barato para inflar la puntuacion. El manual deja su
+ * id en `ids` (para no volver a tratarlo) y su fuente en `fuentes` (para que se vea).
+ */
 export function fusiona(grupo: readonly SesionCruda[]): SesionFusionada {
   if (grupo.length === 1) {
-    return { ...grupo[0], fuentes: [grupo[0].fuente], fusionada: false, ids: [grupo[0].id] };
+    return {
+      ...grupo[0],
+      fuentes: [grupo[0].fuente],
+      fusionada: false,
+      ids: [grupo[0].id],
+      manual: grupo[0].manual === true,
+    };
+  }
+
+  const automaticas = grupo.filter((s) => s.manual !== true);
+  if (automaticas.length > 0 && automaticas.length < grupo.length) {
+    // Hay registro automatico: se fusiona solo con eso, y los manuales quedan absorbidos.
+    const base = fusiona(automaticas);
+    return {
+      ...base,
+      fusionada: true,
+      fuentes: [...new Set(grupo.map((s) => s.fuente))],
+      ids: grupo.map((s) => s.id),
+      manual: false,
+    };
   }
 
   const conPulso = grupo.filter((s) => s.pulsos.length > 0);
@@ -196,6 +233,8 @@ export function fusiona(grupo: readonly SesionCruda[]): SesionFusionada {
     fuentes: [...new Set(grupo.map((s) => s.fuente))],
     fusionada: true,
     ids: grupo.map((s) => s.id),
+    // Aqui el grupo es homogeneo: o todo automatico o todo a mano.
+    manual: automaticas.length === 0,
   };
 }
 

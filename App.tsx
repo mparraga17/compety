@@ -17,6 +17,7 @@ import { codigoDeUrl } from './src/datos/enlaces';
 import { misLigas, type LigaRemota, type Movimiento } from './src/datos/ligas';
 import { calcula } from './src/datos/sincroniza';
 import { HAY_SERVIDOR } from './src/datos/supabase';
+import { declararZonaHoraria } from './src/datos/zonaHoraria';
 import { nombreLiga, ordinal } from './src/i18n/ligas';
 import { conValores, idiomaActual, textos } from './src/i18n/textos';
 import type { Resultado } from './src/motor/sesiones';
@@ -406,6 +407,26 @@ export default function App() {
   }, []);
 
   /**
+   * Entrar con una cuenta ya completa. Un solo camino para el arranque con sesion guardada y
+   * para el alta: antes eran dos copias, y las copias son donde un arreglo se olvida.
+   *
+   * ⭐ La zona horaria se declara ANTES de cargar nada del servidor: la primera sincronizacion
+   * (que dispara Competi al montarse) cierra tus periodos con la zona que el servidor conozca, y
+   * tiene que ser la de hoy, no la del ultimo viaje. Solo escribe si cambio; si falla (sin red),
+   * el servidor sigue con la ultima conocida y se reintenta en el siguiente arranque.
+   */
+  const entrarDentro = useCallback(
+    async (c: Cuenta) => {
+      setCuenta(c);
+      await declararZonaHoraria().catch(() => null);
+      await cargarLigas();
+      setFase('dentro');
+      void cargarSalud();
+    },
+    [cargarLigas, cargarSalud],
+  );
+
+  /**
    * Arranque: permisos de salud y sesion. Es una funcion y no solo un efecto porque la pantalla
    * de "sin conexion" la vuelve a llamar al reintentar.
    *
@@ -453,11 +474,8 @@ export default function App() {
       setFase('entrar');
       return;
     }
-    setCuenta(c);
-    await cargarLigas();
-    setFase('dentro');
-    void cargarSalud();
-  }, [cargarLigas, cargarSalud]);
+    await entrarDentro(c);
+  }, [entrarDentro]);
 
   useEffect(() => {
     void arrancar();
@@ -650,12 +668,7 @@ export default function App() {
     });
   }, [fase]);
 
-  async function entrarDentro(c: Cuenta) {
-    setCuenta(c);
-    await cargarLigas();
-    setFase('dentro');
-    void cargarSalud();
-  }
+
 
   /**
    * Cabecera de vuelta de los modales. Va arriba y fuera del scroll.

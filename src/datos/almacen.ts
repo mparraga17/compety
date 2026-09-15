@@ -28,6 +28,8 @@ export const CLAVES = {
   cuenta: 'cuenta',
   /** Resumen de pulsos de una sesion ya leida de HealthKit. Ver `leeResumenes`. */
   pulsos: (idSesion: string) => `pulsos:${idSesion}`,
+  /** Ultima zona horaria declarada al servidor, para declararla solo cuando cambia. */
+  zonaHoraria: 'zonaHoraria',
   /**
    * Celebracion ya mostrada. La clave lleva el momento y su periodo (`oms:2026-09-07`), asi
    * cada logro se celebra UNA vez: una celebracion que reaparece cada vez que abres la app

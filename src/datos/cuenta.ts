@@ -5,6 +5,7 @@ import { actualizaCuenta, guardaCuenta, leeCuenta, olvidaCuenta } from './almace
 import { almacenNativo, borrarTodoLocal } from './almacenNativo';
 import { borrarCuenta as borrarEnServidor } from './ligas';
 import { HAY_SERVIDOR, supabase, usuarioActual } from './supabase';
+import { olvidaZonaHorariaDeclarada } from './zonaHoraria';
 import { soltarToken } from '../avisos/push';
 
 /**
@@ -241,6 +242,8 @@ export async function salir(): Promise<void> {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
   await olvidaCuenta(almacenNativo()).catch(() => undefined);
+  // La zona horaria declarada era de esta cuenta: la siguiente en este telefono declara la suya.
+  await olvidaZonaHorariaDeclarada().catch(() => undefined);
 }
 
 /**

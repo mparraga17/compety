@@ -145,6 +145,20 @@ describe('eleccion de la via', () => {
     expect(resuelveCarga({ tipo: 'PADEL', minutos: 90 })!.origen).toBe('estimada');
   });
 
+  it('un rpe que no es un numero de verdad se trata como no declarado, nunca produce NaN', () => {
+    // NaN pasa el chequeo `!= null`, y sin el guard la carga salia NaN y llegaba a los puntos
+    // que suben al servidor. Un esfuerzo inutilizable es un esfuerzo ausente.
+    const carga = resuelveCarga({ tipo: 'RUNNING', minutos: 45, rpe: Number.NaN });
+    expect(carga!.origen).toBe('estimada');
+    expect(Number.isFinite(carga!.valor)).toBe(true);
+
+    // Y la intensidad NaN ya la rechazaba el guard existente (`NaN > 0` es false): fijado
+    // aqui para que nadie lo "simplifique" a un chequeo de null.
+    const conIntensidadRota = resuelveCarga({ tipo: 'RUNNING', minutos: 45, intensidad: Number.NaN });
+    expect(conIntensidadRota!.origen).toBe('estimada');
+    expect(Number.isFinite(conIntensidadRota!.valor)).toBe(true);
+  });
+
   it('solo se ofrece mejorar cuando la carga no viene del pulso', () => {
     expect(puedeMejorar(resuelveCarga({ tipo: 'RUNNING', minutos: 30, intensidad: 2.8 })!)).toBe(false);
     expect(puedeMejorar(resuelveCarga({ tipo: 'RUNNING', minutos: 30 })!)).toBe(true);

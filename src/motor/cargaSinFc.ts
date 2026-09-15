@@ -206,7 +206,12 @@ export function resuelveCarga(entrada: {
   if (intensidad != null && intensidad > 0) {
     return cargaMedida({ tipo, minutos, intensidad });
   }
-  if (rpe != null) return cargaDeclarada(rpe, minutos, tipo);
+  // ⚠️ `Number.isFinite` y no solo `!= null`: NaN pasa el chequeo de null y `Math.round(NaN)`
+  // dentro de `cargaDeclarada` fabricaria una carga NaN que se propaga hasta los puntos que
+  // suben al servidor. Un esfuerzo inutilizable se trata como no declarado y la sesion cae a
+  // la estimacion por deporte, que es lo que significa "no hay respuesta". (El guard de
+  // intensidad ya rechaza NaN de rebote: `NaN > 0` es false.)
+  if (rpe != null && Number.isFinite(rpe)) return cargaDeclarada(rpe, minutos, tipo);
 
   return cargaEstimada(tipo, minutos);
 }

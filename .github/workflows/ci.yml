@@ -1,0 +1,50 @@
+# Comprobaciones automáticas en cada push y pull request.
+#
+# Por qué existe: `npm run typecheck` y `npm test` ya estaban, pero nadie los ejecutaba si no se
+# acordaba. El patrón "bug arreglado en un sitio y reintroducido en otro" ya mordió dos veces en
+# este repo (el candado `vivo` que no llegó a `cargar`, el arreglo del teclado que no llegó a
+# Entrar). Esto no lo evita del todo, pero garantiza que lo que se sube compila y pasa los
+# 200+ tests del motor, sin depender de la memoria de nadie.
+#
+# Lo que NO hace: no construye la app (eso es EAS, cuesta cuota y solo lo lanza una persona a
+# mano) ni toca Supabase (los tests son JS puro: sin .env, HAY_SERVIDOR es false).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Un push nuevo a la misma rama cancela la ejecución anterior: la que importa es la última.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Mínimo privilegio: solo lee el repo. No publica nada ni comenta en PRs.
+permissions:
+  contents: read
+
+jobs:
+  comprobar:
+    name: typecheck + tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # La misma major que en desarrollo (Node 24). El lockfile manda en las dependencias.
+          node-version: 24
+          cache: npm
+
+      # `ci` y no `install`: respeta package-lock.json al byte y falla si no cuadra, que es lo
+      # que quieres en una máquina que no es la tuya.
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      # `--ci`: sin modo interactivo ni escritura de snapshots nuevos. La zona horaria la fija
+      # jest.zona-horaria.js (Europe/Madrid), y hay un test que lo comprueba: un runner en UTC
+      # no tiene cambio de hora y sin eso los tests de racha no probarían nada.
+      - run: npm test -- --ci

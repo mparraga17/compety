@@ -1,5 +1,7 @@
 # Compety
 
+[![CI](https://github.com/mparraga17/compety/actions/workflows/ci.yml/badge.svg)](https://github.com/mparraga17/compety/actions/workflows/ci.yml)
+
 App de iOS que mide el esfuerzo de cada sesión de ejercicio y lo convierte en puntos, para competir en ligas privadas con gente que ya conoces.
 
 La idea de fondo: una clase de barre exigente puede sumar más que una carrera tranquila. Ninguna app de competición deportiva puntúa frecuencia cardíaca, así que barre, pilates y fuerza no cuentan en ninguna parte. Compety las cuenta.

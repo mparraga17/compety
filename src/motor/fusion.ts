@@ -58,12 +58,38 @@ export type SesionFusionada = SesionCruda & {
 export const UMBRAL_SOLAPE = 0.5;
 
 /**
+ * ⭐ Tipos que NO son un deporte sino "no se que deporte era": null (codigo desconocido) y
+ * 'SPORT' (el "otro" de HealthKit, codigo 3000, donde el puente de Fitbit tira las pesas).
+ *
+ * ⛔ Aqui habia un escape medido en el propio proyecto: Fitbit escribia las pesas como 3000 →
+ * 'SPORT' y un Apple Watch las escribe como 50 → 'STRENGTH_TRAINING'. Mismo entreno, tipos
+ * distintos, y la regla exigia tipo identico: no se agrupaban y contaban DOS veces, en el ranking
+ * y en la base personal. La correccion manual del deporte llega despues de deduplicar, asi que
+ * tampoco lo reparaba. Un generico no puede vetar un solape del 90 %: es lo que significa.
+ *
+ * ⚠️ Solo estos dos. 'WORKOUT' agrupa varias actividades de HealthKit pero es una familia real
+ * (eliptica, escaleras, cross training); tratarlo como generico se decidira con datos, no aqui.
+ */
+export function esTipoGenerico(tipo: string | null): boolean {
+  return tipo === null || tipo === 'SPORT';
+}
+
+/** Dos tipos pueden ser el mismo entreno si coinciden o si alguno no sabe que deporte era. */
+function tiposCompatibles(a: string | null, b: string | null): boolean {
+  return a === b || esTipoGenerico(a) || esTipoGenerico(b);
+}
+
+/**
  * Agrupa sesiones que son la misma cosa vista por fuentes distintas.
  *
- * Dos registros van juntos si comparten tipo y se solapan por encima del umbral respecto al
- * mas corto. Los grupos son transitivos, con union-find, y eso es lo que cubre el caso N:1:
- * si Nike partio una carrera en dos y la pulsera la vio entera, comparar por pares dejaria
- * uno de los trozos suelto.
+ * Dos registros van juntos si su tipo es compatible (igual, o uno de los dos generico) y se
+ * solapan por encima del umbral respecto al mas corto. Los grupos son transitivos, con
+ * union-find, y eso es lo que cubre el caso N:1: si Nike partio una carrera en dos y la pulsera
+ * la vio entera, comparar por pares dejaria uno de los trozos suelto.
+ *
+ * ⚠️ El solape es la guarda real contra falsos positivos: dos deportes de verdad distintos no
+ * pueden ocupar la misma media hora de la misma persona. Por eso relajar el tipo cuando uno es
+ * generico es seguro, y por eso dos deportes CONCRETOS distintos siguen sin mezclarse.
  */
 export function agrupa(
   sesiones: readonly SesionCruda[],
@@ -89,7 +115,7 @@ export function agrupa(
     for (let j = i + 1; j < orden.length; j++) {
       // Estan ordenadas por inicio, asi que a partir de aqui ya no solapa nada con i.
       if (orden[j].inicio >= orden[i].fin) break;
-      if (orden[i].tipo !== orden[j].tipo) continue;
+      if (!tiposCompatibles(orden[i].tipo, orden[j].tipo)) continue;
 
       const solape =
         Math.min(orden[i].fin, orden[j].fin) - Math.max(orden[i].inicio, orden[j].inicio);
@@ -107,6 +133,21 @@ export function agrupa(
   });
 
   return [...grupos.values()];
+}
+
+/**
+ * El deporte del grupo: el CONCRETO, nunca el generico si hay otro.
+ *
+ * Antes salia del corazon por el `...corazon`, y el corazon es el wearable: en el caso
+ * Fitbit + Watch eso devolvia justo el 'SPORT' de Fitbit. El MET, el descuento sin pulso y la
+ * liga salen del tipo, asi que tiene que ser el que sabe que deporte fue. Si hay varios concretos
+ * (un generico hizo de puente entre dos registros mal etiquetados), gana el de la sesion mas
+ * larga: es la que vio el entreno entero. Nunca se inventa un tercero.
+ */
+function tipoDelGrupo(grupo: readonly SesionCruda[]): string | null {
+  const concretas = grupo.filter((s) => !esTipoGenerico(s.tipo));
+  if (concretas.length === 0) return grupo[0].tipo;
+  return concretas.reduce((mejor, s) => (s.fin - s.inicio > mejor.fin - mejor.inicio ? s : mejor)).tipo;
 }
 
 /** Une un grupo en una sesion: cada campo lo aporta quien lo mide mejor. */
@@ -144,6 +185,7 @@ export function fusiona(grupo: readonly SesionCruda[]): SesionFusionada {
 
   return {
     ...corazon,
+    tipo: tipoDelGrupo(grupo),
     inicio,
     fin,
     segundos,

@@ -479,47 +479,104 @@ export function Ligas({
     [resultado],
   );
 
-  const cargar = useCallback(async () => {
-    if (ligaActiva === null) return;
-    setCargando(true);
-    setError(null);
-    try {
-      // Se sincroniza primero para que la propia puntuacion este al dia antes de leer la tabla.
-      const r = await sincroniza();
-      // Ascensos y descensos de la jornada recien cerrada. Los celebra App, que es quien
-      // tiene la Celebracion montada encima de todo.
-      if (r.movimientos.length > 0) onMovimientos?.(r.movimientos);
-      // La lista de ligas se refresca a la vez que la tabla: el "N miembros" del título salía
-      // de la lista y no se enteraba de que alguien había entrado hasta reabrir la app.
-      const [tablaNueva] = await Promise.all([
-        clasificacion(ligaActiva, horizonte),
-        onRecargarLigas?.(),
-      ]);
-      setTabla(tablaNueva);
-      /*
-        ⭐ Celebración de liderato: se avisa a App cuando vas PRIMERO con al menos un rival.
-        Solo en la ventana por defecto, que es la que ve todo el mundo: celebrar también el
-        liderato del año al cambiar de desplegable convertiría el momento pico en confeti de
-        fondo. El candado de "una vez por semana y liga" lo pone App, igual que con la OMS.
-      */
-      if (
-        horizonte === HORIZONTE_POR_DEFECTO &&
-        tablaNueva.length > 1 &&
-        yo !== null &&
-        tablaNueva[0].usuario === yo
-      ) {
-        onPrimero?.(ligaActiva, tablaNueva[0].puntos);
-      }
-    } catch (e) {
-      setError(mensajeDe(e));
-    } finally {
-      setCargando(false);
-    }
-  }, [ligaActiva, horizonte, onMovimientos, onPrimero, onRecargarLigas, yo]);
+  /**
+   * ⛔⛔ Número de secuencia de la carga. Solo la petición MÁS RECIENTE puede pintar.
+   *
+   * Sin esto, cambiar rápido de liga o de ventana dejaba dos peticiones en vuelo y ganaba la que
+   * llegara última, no la última pedida: la tabla de la liga A podía quedarse bajo el nombre de
+   * la liga B, en la pantalla principal del producto. El efecto de la temporada, veinte líneas
+   * más abajo, ya llevaba este candado (`vivo`) y explicaba el riesgo; el de la tabla no. Un
+   * arreglo que no se propaga a la función de al lado es medio arreglo.
+   */
+  const secuencia = useRef(0);
 
+  /**
+   * Lee la tabla de una liga en una ventana. Con `sincronizar`, antes sube la puntuación propia.
+   *
+   * ⚠️ `liga` y `ventana` van por PARÁMETRO y no por cierre: así el efecto de abajo puede decidir
+   * qué pedir sin arrastrar una versión vieja de `horizonte`, y `cargar` no cambia de identidad
+   * cada vez que cambia el desplegable.
+   */
+  const cargar = useCallback(
+    async (liga: string, ventana: IdHorizonte, sincronizar: boolean) => {
+      const mia = ++secuencia.current;
+      const vigente = () => mia === secuencia.current;
+      setCargando(true);
+      setError(null);
+      try {
+        if (sincronizar) {
+          // Se sincroniza primero para que la propia puntuacion este al dia antes de leer la
+          // tabla. Sube TODAS las ventanas de golpe, así que solo hace falta al cambiar de liga
+          // o al tirar para refrescar, no al cambiar de ventana.
+          const r = await sincroniza();
+          // Ascensos y descensos de la jornada recien cerrada. Los celebra App, que es quien
+          // tiene la Celebracion montada encima de todo. No se filtra por `vigente`: son un
+          // hecho del servidor, no un estado de esta tabla, y App ya los celebra una sola vez.
+          if (r.movimientos.length > 0) onMovimientos?.(r.movimientos);
+        }
+        // La lista de ligas se refresca a la vez que la tabla: el "N miembros" del título salía
+        // de la lista y no se enteraba de que alguien había entrado hasta reabrir la app.
+        const [tablaNueva] = await Promise.all([
+          clasificacion(liga, ventana),
+          sincronizar ? onRecargarLigas?.() : undefined,
+        ]);
+        if (!vigente()) return;
+        setTabla(tablaNueva);
+        /*
+          ⭐ Celebración de liderato: se avisa a App cuando vas PRIMERO con al menos un rival.
+          Solo en la ventana por defecto, que es la que ve todo el mundo: celebrar también el
+          liderato del año al cambiar de desplegable convertiría el momento pico en confeti de
+          fondo. El candado de "una vez por semana y liga" lo pone App, igual que con la OMS.
+        */
+        if (
+          ventana === HORIZONTE_POR_DEFECTO &&
+          tablaNueva.length > 1 &&
+          yo !== null &&
+          tablaNueva[0].usuario === yo
+        ) {
+          onPrimero?.(liga, tablaNueva[0].puntos);
+        }
+      } catch (e) {
+        if (vigente()) setError(mensajeDe(e));
+      } finally {
+        // El spinner lo apaga solo la petición vigente: si una vieja lo apagara, la nueva
+        // seguiría cargando con la rueda parada.
+        if (vigente()) setCargando(false);
+      }
+    },
+    [onMovimientos, onPrimero, onRecargarLigas, yo],
+  );
+
+  /**
+   * Qué pedir y cuándo, en un solo efecto:
+   *
+   *   cambio de liga (y el arranque)   sincronizar + tabla. La liga nueva puede ser una a la que
+   *                                    acabas de entrar y aún no tiene tu puntuación.
+   *   cambio de ventana                solo la tabla. La sincronización ya subió las cinco
+   *                                    ventanas; repetirla era releer 30 días de HealthKit y hacer
+   *                                    treinta escrituras por tocar un desplegable.
+   *
+   * ⚠️ Al cambiar de liga la tabla se VACÍA antes de pedir, como hace la temporada: enseñar la
+   * gente de la liga anterior bajo el nombre de la nueva sería mentir. Al cambiar de ventana no:
+   * es la misma gente y los números se actualizan en su sitio, con la rueda encima.
+   */
+  const ligaAnterior = useRef<string | null>(null);
   useEffect(() => {
-    void cargar();
-  }, [cargar]);
+    if (ligaActiva === null) {
+      ligaAnterior.current = null;
+      setTabla([]);
+      return;
+    }
+    const cambioDeLiga = ligaAnterior.current !== ligaActiva;
+    ligaAnterior.current = ligaActiva;
+    if (cambioDeLiga) setTabla([]);
+    void cargar(ligaActiva, horizonte, cambioDeLiga);
+  }, [ligaActiva, horizonte, cargar]);
+
+  /** Tirar para refrescar: sincroniza y relee, siempre. */
+  const refrescar = useCallback(() => {
+    if (ligaActiva !== null) void cargar(ligaActiva, horizonte, true);
+  }, [cargar, ligaActiva, horizonte]);
 
   /**
    * ⭐ La TEMPORADA de la liga activa: semanas ganadas y el último cierre. Aparte de `cargar`
@@ -790,7 +847,7 @@ export function Ligas({
       style={s.fondo}
       contentContainerStyle={s.contenido}
       // `pegado`: la cabecera ya no va dentro del scroll, así que la rueda no necesita bajar.
-      refreshControl={<Recarga cargando={cargando} onRecargar={cargar} pegado />}
+      refreshControl={<Recarga cargando={cargando} onRecargar={refrescar} pegado />}
     >
       {/*
         ⭐ Dos desplegables, no tiras horizontales. Con 8 ligas las últimas quedaban fuera del

@@ -4,10 +4,12 @@
 -- bloque nombra el fallo que cierra y el escenario en que se producía. Ninguno exige cambios
 -- en la app instalada: el build 8 sigue funcionando igual con esta migración aplicada.
 --
--- ⛔ NO APLICADA a producción al escribirse. Se aplica con:
+-- ✅ APLICADA a producción el 15 sep 2026 (tarde), dentro de una transacción, con respaldo JSON previo
+-- de las 12 tablas en supabase/.temp/respaldo-20260915-1558-antes-mig12/ y checklist pasado: recuento
+-- total de filas idéntico antes y después (226). Se aplicó con:
 --   npx supabase db query --linked --project-ref vrmfvjtwyaofkqpvpbmx -o json -f supabase/migracion-12-integridad.sql
 --
--- Después de aplicar, comprobar (checklist al final del fichero).
+-- Checklist de verificación al final del fichero.
 --
 -- Idempotente: se puede pegar dos veces.
 -- ══════════════════════════════════════════════════════════════════════════════

@@ -50,4 +50,14 @@ describe('enlaces de invitación', () => {
     expect(codigoDeUrl('compety://liga/AB%20123')).toBeNull(); // espacio dentro
     expect(codigoDeUrl('https://mparraga17.github.io/compety/liga.html?codigo=')).toBeNull();
   });
+
+  test('percent-encoding roto devuelve null en vez de lanzar', () => {
+    // `decodeURIComponent` lanza URIError con estas tres. El listener de enlaces es síncrono:
+    // sin la guarda, un enlace corrupto compartido por WhatsApp era un crash de la app entera.
+    expect(codigoDeUrl('compety://liga/%')).toBeNull();
+    expect(codigoDeUrl('compety://liga/%ZZ123')).toBeNull();
+    expect(
+      codigoDeUrl('https://mparraga17.github.io/compety/liga.html?codigo=%E0%A4%A'),
+    ).toBeNull();
+  });
 });

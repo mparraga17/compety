@@ -90,6 +90,16 @@ export function codigoDeUrl(url: string): string | null {
   }
 
   if (bruto === null) return null;
-  const codigo = decodeURIComponent(bruto).trim().toUpperCase();
+  // ⚠️ `decodeURIComponent` LANZA `URIError` con percent-encoding roto (`%`, `%ZZ`, secuencias
+  // a medias), y este parseo corre dentro del listener síncrono de enlaces: una excepción aquí
+  // tiraría la app entera por un enlace corrupto. Y los enlaces corruptos llegan solos: las
+  // apps de mensajería reescriben URLs al compartirlas. Un enlace roto no es una invitación,
+  // así que devuelve null como cualquier otro formato inválido.
+  let codigo: string;
+  try {
+    codigo = decodeURIComponent(bruto).trim().toUpperCase();
+  } catch {
+    return null;
+  }
   return CODIGO.test(codigo) ? codigo : null;
 }

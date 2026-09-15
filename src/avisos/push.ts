@@ -88,7 +88,15 @@ export async function guardarToken(token: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Al cerrar sesion se suelta el token, para no avisar a un teléfono que ya no es tuyo. */
+/**
+ * Al cerrar sesion se suelta el token, para no avisar a un teléfono que ya no es tuyo.
+ *
+ * ⚠️ Si el update falla, LANZA, igual que `guardarToken`. Antes se tragaba el error y un
+ * logout sin red dejaba el token vivo en el perfil en silencio: los avisos de tus ligas
+ * (nombres y puntos incluidos) seguian llegando a un telefono que ya no era tuyo. Quien
+ * llama decide si puede tolerar el fallo (el borrado de cuenta si: la cascada se lleva el
+ * token de todas formas) o si debe abortar (cerrar sesion).
+ */
 export async function soltarToken(): Promise<void> {
   if (!HAY_SERVIDOR) return;
 
@@ -96,7 +104,8 @@ export async function soltarToken(): Promise<void> {
   const usuario = sesion.data.session?.user.id;
   if (usuario === undefined) return;
 
-  await supabase.from('perfiles').update({ push_token: null }).eq('id', usuario);
+  const { error } = await supabase.from('perfiles').update({ push_token: null }).eq('id', usuario);
+  if (error) throw error;
 }
 
 /**

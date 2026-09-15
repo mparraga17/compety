@@ -139,6 +139,9 @@ export async function guardarNombre(nombre: string): Promise<void> {
 export async function salir(): Promise<void> {
   if (!HAY_SERVIDOR) return;
   // Se suelta el token primero, para no seguir avisando a un telefono que ya no es de nadie.
+  // ⚠️ Y si no se puede soltar (sin red), el cierre de sesion ABORTA y la pantalla enseña el
+  // error: cerrar sesion dejando el token vivo seguiria mandando avisos con nombres y puntos
+  // de tus ligas a un telefono que ya no es tuyo. Reintentar con red es el camino.
   await soltarToken();
   await supabase.auth.signOut();
 }
@@ -148,7 +151,10 @@ export async function salir(): Promise<void> {
  * El borrado en cascada del perfil se lleva miembros, puntuaciones, avisos y amistades.
  */
 export async function borrarCuenta(): Promise<void> {
-  await soltarToken();
+  // Aqui un fallo al soltar el token NO bloquea: el borrado en cascada del perfil se lleva
+  // el token de todas formas, y bloquear el borrado de cuenta (requisito de Apple) por un
+  // update prescindible seria el tradeoff equivocado.
+  await soltarToken().catch(() => undefined);
   await borrarEnServidor();
   await borrarTodoLocal();
 }

@@ -24,7 +24,11 @@
 -- `p_periodo`, y el servidor ahora los IGNORA: la fecha del cliente deja de ser fuente de verdad
 -- (era el candado de la migración 10; ya no hace falta un candado para un dato que no se usa).
 --
--- ⛔ NO APLICADA a producción al escribirse. Se aplica con:
+-- ✅ APLICADA a producción el 15 sep 2026 (noche), en transacción, con respaldo JSON previo en
+-- supabase/.temp/respaldo-20260915-1654-antes-mig13/ y checklist pasado: 8 perfiles y 2 zonas en
+-- Europe/Madrid, helpers sin EXECUTE para authenticated, recuento de filas idéntico (226), y probado
+-- en una transacción con rollback que la zona inválida da 22023, que sin sesión falla cerrado y que
+-- `hoy_en` distingue husos (Auckland ya era el 16 mientras Los Ángeles y UTC eran el 15). Comando:
 --   npx supabase db query --linked --project-ref vrmfvjtwyaofkqpvpbmx -o json -f supabase/migracion-13-zona-horaria.sql
 --
 -- No destructiva: dos columnas nuevas con valor por defecto (la beta está en España) y funciones

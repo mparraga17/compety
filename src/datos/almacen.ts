@@ -22,6 +22,8 @@ export const CLAVES = {
   deporte: (idSesion: string) => `deporte:${idSesion}`,
   /** Ultimo maximo de referencia calculado, para no releer 90 dias en cada arranque. */
   maximo: 'maximo',
+  /** Que tipos de HealthKit tienen entrega en segundo plano configurada, con version. */
+  observador: 'observador',
   /**
    * Celebracion ya mostrada. La clave lleva el momento y su periodo (`oms:2026-09-07`), asi
    * cada logro se celebra UNA vez: una celebracion que reaparece cada vez que abres la app

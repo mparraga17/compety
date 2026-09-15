@@ -41,6 +41,10 @@ const CONOCIDOS: readonly (readonly [string, string])[] = [
   ['no se pudo generar codigo', 'No se pudo crear la liga. Prueba otra vez.'],
   ['sin-servidor', 'No hay conexión con el servidor.'],
   ['primero hay que crear el perfil', 'Falta tu nombre. Vuelve a entrar para completarlo.'],
+  // El servidor acota las fechas que manda el teléfono a ±2 días de la suya (migraciones 10 y
+  // 12). Solo salta con un reloj muy desajustado, y entonces la salida es arreglar el reloj.
+  ['fecha fuera de rango', 'La fecha de tu teléfono no cuadra con la del servidor. Revisa la hora.'],
+  ['periodo fuera de rango', 'La fecha de tu teléfono no cuadra con la del servidor. Revisa la hora.'],
 ];
 
 /** Fallos de red, que no son culpa de nadie y merecen otro tono. */

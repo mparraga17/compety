@@ -182,15 +182,23 @@ export async function sincroniza(): Promise<Sincronizacion> {
       const z = zDe(ultima.carga, resultado.base);
       const tono = tonoDe(z);
       if (tono === 'fuerte') {
-        // La huella incluye la sesion, asi que repetir la sincronizacion no reavisa.
-        await anotarAviso({
+        // La huella incluye la sesion, asi que repetir la sincronizacion no reavisa. El servidor
+        // la cualifica ademas con el autor (migracion 12): la app no tiene que hacer nada.
+        //
+        // ⚠️ El aviso es un EFECTO SECUNDARIO de la puntuacion, no la puntuacion. Si el servidor lo
+        // rechaza (cupo de avisos, clase no admitida) o falla la red justo aqui, la sincronizacion
+        // de las demas ligas tiene que seguir: sin este catch, un aviso caido cortaba el bucle y
+        // dejaba ligas sin puntuar. Lo que se traga es el aviso, y solo el aviso.
+        const anotado = await anotarAviso({
           liga: liga.id,
           clase: 'sesion',
           puntos: ultima.puntos,
           tono,
           huella: `${liga.id}|${ultima.id}`,
-        });
-        avisos += 1;
+        })
+          .then(() => true)
+          .catch(() => false);
+        if (anotado) avisos += 1;
       }
     }
   }

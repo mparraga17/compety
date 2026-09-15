@@ -16,6 +16,8 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  // Zona horaria fija para toda la suite. Ver el porque en el propio fichero.
+  globalSetup: '<rootDir>/jest.zona-horaria.js',
   // `src/avisos` entro el 11 sep por `destino.test.ts`: el destino de un aviso al tocarlo es JS puro.
   testMatch: ['**/src/(motor|i18n|datos|avisos)/**/*.test.ts'],
 };

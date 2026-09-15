@@ -21,6 +21,7 @@ import { nombreLiga, ordinal } from './src/i18n/ligas';
 import { conValores, idiomaActual, textos } from './src/i18n/textos';
 import type { Resultado } from './src/motor/sesiones';
 import { HORIZONTES, enVentana } from './src/motor/ranking';
+import { claveSemana } from './src/motor/semana';
 import { Amigos } from './src/pantallas/Amigos';
 import { Bienvenida } from './src/pantallas/Bienvenida';
 import { Diagnostico } from './src/pantallas/Diagnostico';
@@ -284,10 +285,8 @@ export default function App() {
    * la pantalla, que volvería a sincronizar sin que nadie lo pidiera.
    */
   const celebrarLiderato = useCallback((ligaId: string, puntos: number) => {
-    const hoy = new Date();
-    const lunes = new Date(hoy);
-    lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7));
-    const momento = `primero:${ligaId}:${lunes.getFullYear()}-${lunes.getMonth() + 1}-${lunes.getDate()}`;
+    // Una vez por semana y liga: la semana es la del motor (`semana.ts`), la misma que cierra.
+    const momento = `primero:${ligaId}:${claveSemana(Date.now())}`;
 
     void (async () => {
       const visto = await yaCelebrado(almacenNativo(), momento).catch(() => true);
@@ -566,11 +565,9 @@ export default function App() {
     if (fase !== 'dentro' || modal !== null || fiesta !== null) return;
     if (omsActual === null || !omsActual.cumple) return;
 
-    // Lunes de la semana en curso, fecha local. Es el periodo del logro.
-    const hoy = new Date();
-    const lunes = new Date(hoy);
-    lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7));
-    const momento = `oms:${lunes.getFullYear()}-${lunes.getMonth() + 1}-${lunes.getDate()}`;
+    // La semana en curso, fecha local. Es el periodo del logro, y la clave conserva el formato
+    // que ya hay persistido en los teléfonos de la beta (`oms:2026-9-14`).
+    const momento = `oms:${claveSemana(Date.now())}`;
 
     let vivo = true;
     void (async () => {

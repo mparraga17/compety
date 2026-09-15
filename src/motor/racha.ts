@@ -1,4 +1,7 @@
 import { OBJETIVO_MINUTOS, calculaOms, type SesionParaOms } from './oms';
+// ⛔ El lunes se calcula en `semana.ts` y en ningún otro sitio: aquí vivió el bug de cambio de
+// hora que rompía la racha de todo el mundo dos veces al año (ver racha.test.ts).
+import { lunesAnterior, lunesDe } from './semana';
 
 /**
  * Racha de SEMANAS cumpliendo el objetivo de la OMS.
@@ -54,14 +57,6 @@ export const COMODINES_MAX = 1;
 /** Semanas cumplidas seguidas que regeneran un comodín. */
 export const SEMANAS_POR_COMODIN = 4;
 
-/** Lunes (00:00 local) de la semana que contiene `t`. */
-function lunesDe(t: number): number {
-  const d = new Date(t);
-  d.setHours(0, 0, 0, 0);
-  const desplazamiento = (d.getDay() + 6) % 7;
-  return d.getTime() - desplazamiento * 86_400_000;
-}
-
 /**
  * Calcula la racha desde las sesiones disponibles.
  *
@@ -90,7 +85,7 @@ export function calculaRacha(
   const masAntigua = semanasConDatos[semanasConDatos.length - 1] ?? estaSemana;
 
   const historial: SemanaRacha[] = [];
-  for (let lunes = estaSemana; lunes >= masAntigua; lunes -= 7 * 86_400_000) {
+  for (let lunes = estaSemana; lunes >= masAntigua; lunes = lunesAnterior(lunes)) {
     const oms = calculaOms(porSemana.get(lunes) ?? []);
     historial.push({
       inicio: lunes,

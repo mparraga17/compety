@@ -1,5 +1,6 @@
 import { entraEnLiga, type IdLiga } from './ligas';
 import { MINUTOS_MINIMOS } from './met';
+import { lunesDe } from './semana';
 
 /**
  * Ranking. Es la pieza que decide quien gana, y ha fallado tres veces por el mismo motivo.
@@ -187,13 +188,10 @@ export function desdeDe(horizonte: Horizonte, ahora: Date = new Date()): number 
   const dia = 86_400_000;
 
   switch (horizonte.id) {
-    case 'wtd': {
-      // Lunes como primer dia, que es la convencion en Espana.
-      const x = new Date(ahora);
-      const desplazamiento = (x.getDay() + 6) % 7;
-      x.setHours(0, 0, 0, 0);
-      return x.getTime() - desplazamiento * dia;
-    }
+    case 'wtd':
+      // Lunes como primer dia, que es la convencion en Espana. Por calendario y no restando
+      // horas: ver `semana.ts` para el bug de cambio de hora que motiva la regla.
+      return lunesDe(ahora.getTime());
     case 'mtd':
       return new Date(ahora.getFullYear(), ahora.getMonth(), 1).getTime();
     case 'ytd':

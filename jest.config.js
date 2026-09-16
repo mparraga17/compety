@@ -19,5 +19,8 @@ module.exports = {
   // Zona horaria fija para toda la suite. Ver el porque en el propio fichero.
   globalSetup: '<rootDir>/jest.zona-horaria.js',
   // `src/avisos` entro el 11 sep por `destino.test.ts`: el destino de un aviso al tocarlo es JS puro.
-  testMatch: ['**/src/(motor|i18n|datos|avisos)/**/*.test.ts'],
+  // `src/componentes` entro el 16 sep por `repartoEstilo.test.ts`: el reparto del estilo de un
+  // Pulsable es una funcion pura (solo importa TIPOS de react-native), asi que corre aqui sin
+  // renderizar nada. Los componentes en si siguen sin tests: exigirian un renderer.
+  testMatch: ['**/src/(motor|i18n|datos|avisos|componentes)/**/*.test.ts'],
 };

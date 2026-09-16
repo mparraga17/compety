@@ -2,11 +2,13 @@ import { useRef, type ReactNode } from 'react';
 import {
   Animated,
   Pressable,
+  StyleSheet,
   type PressableProps,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
+import { repartirEstilo } from './repartoEstilo';
 import { CURVA, MS, useReducirMovimiento } from '../movimiento';
 
 /**
@@ -37,6 +39,7 @@ import { CURVA, MS, useReducirMovimiento } from '../movimiento';
 
 type Props = PressableProps & {
   children: ReactNode;
+  /** Se escribe como el de un `View` normal; `repartirEstilo` lo reparte entre las dos capas. */
   style?: StyleProp<ViewStyle>;
   /** Cuánto se hunde. 0,97 es el valor de la skill: se nota y no distrae. */
   escala?: number;
@@ -78,13 +81,36 @@ export function Pulsable({ children, style, escala = 0.97, fila = false, ...rest
           ],
         };
 
+  /**
+   * ⭐ Dos capas, y el estilo repartido entre las dos (arreglo del 16 sep).
+   *
+   * El `Pressable` es el hijo que el padre coloca; la `Animated.View` es lo que se ve y se hunde.
+   * Antes TODO el estilo iba a la de dentro, y Yoga solo lee `flex`, `alignSelf`, tamaños, márgenes
+   * y posición del hijo DIRECTO: un `flex: 1` dentro no tenía dónde crecer porque el `Pressable`,
+   * sin estilo, medía su contenido. Se veía en el periodo de Competi (el fondo gris no caía sobre
+   * "7 días"), en las dos cápsulas, en el gráfico de Hoy, en la escala de esfuerzo y en Amigos.
+   *
+   * `repartirEstilo` decide qué va a cada capa; `s.relleno` hace que la de dentro llene a la de
+   * fuera, que ahora es la que tiene el tamaño. Con `flexBasis` en `auto` (no `flex: 1`, que es
+   * basis 0): Yoga mide por contenido cuando la caja de fuera no tiene alto fijo, así que no puede
+   * colapsar, y cuando lo tiene (o tiene `minHeight`) crece hasta llenarlo y el texto sigue
+   * centrado. Verificado en `CalculateLayout.cpp` de RN 0.86.
+   */
+  const { externo, interno } = repartirEstilo(style);
+
   return (
     <Pressable
+      style={externo}
       onPressIn={() => a(1, MS.pulso)}
       onPressOut={() => a(0, MS.suelta)}
       {...resto}
     >
-      <Animated.View style={[style, estiloPulso]}>{children}</Animated.View>
+      <Animated.View style={[s.relleno, interno, estiloPulso]}>{children}</Animated.View>
     </Pressable>
   );
 }
+
+const s = StyleSheet.create({
+  // La capa de dentro llena a la de fuera en el eje principal; en el cruzado ya la estira Yoga.
+  relleno: { flexGrow: 1, flexShrink: 1 },
+});

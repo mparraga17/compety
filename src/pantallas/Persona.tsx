@@ -67,7 +67,6 @@ export function Persona({ persona, yo, onCerrar }: Props) {
 
   const cabecera = (
     <View style={s.cabecera}>
-      <View style={s.agarre} />
       <View style={s.fila}>
         <Avatar nombre={persona.nombre} esYo={esYo} tamano={52} />
         <View style={s.medio}>
@@ -93,6 +92,11 @@ export function Persona({ persona, yo, onCerrar }: Props) {
       onRequestClose={onCerrar}
     >
       <View style={s.hoja}>
+        {/*
+          El tirador FUERA de la lista, fijo, como en `Hoja`. Iba dentro de la cabecera de la
+          FlatList y se desplazaba con ella: un asa que se mueve no parece un asa (16 sep).
+        */}
+        <View style={s.agarre} />
         {visible === false ? (
           <>
             {cabecera}
@@ -113,6 +117,8 @@ export function Persona({ persona, yo, onCerrar }: Props) {
             cargar={cargar}
             cabecera={cabecera}
             vacio={<Text style={s.vacio}>{t.personaSinEntrenos}</Text>}
+            // Dentro de una hoja el tirón hacia abajo cierra la hoja; ver `recargable` en Feed.
+            recargable={false}
           />
         )}
       </View>

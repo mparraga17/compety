@@ -106,6 +106,17 @@ type PropsLista = {
   /** Debajo del botón de cargar más. */
   pie?: ReactNode;
   onPersona?: (persona: PersonaRef) => void;
+  /**
+   * Si se puede tirar para actualizar. Por defecto sí; `false` dentro de una hoja (`pageSheet`).
+   *
+   * ⛔ En una hoja de iOS, tirar hacia abajo con la lista arriba es el gesto de CERRARLA. Con un
+   * `RefreshControl` dentro, el mismo tirón lo consumían los dos: la hoja seguía al dedo mientras
+   * asomaba la rueda, sonaba el toque háptico a medio gesto y, si soltabas antes de tiempo, la
+   * hoja volvía pero la lista se quedaba refrescando con el contenido 60 pt más abajo. Es lo que
+   * el usuario describió como *"hace una cosa rara cuando tiras hacia abajo"* (16 sep). Una lista
+   * que acaba de abrirse no necesita refrescarse: se cierra y se vuelve a abrir.
+   */
+  recargable?: boolean;
 };
 
 export function ListaEntrenos({
@@ -117,6 +128,7 @@ export function ListaEntrenos({
   cabecera,
   pie,
   onPersona,
+  recargable = true,
 }: PropsLista) {
   const idioma = idiomaActual();
   const t = textos(idioma);
@@ -223,9 +235,11 @@ export function ListaEntrenos({
           { paddingBottom: huecoBarra(insets.bottom) },
           vacioAhora && cabecera === undefined && s.contenidoVacio,
         ]}
-        // `pegado` siempre: en Competi la lista va bajo la cabecera fija, y en la ficha de una
-        // persona va dentro de una hoja. En ninguno de los dos casos hay isla dinámica encima.
-        refreshControl={<Recarga cargando={cargando} onRecargar={() => void cargar()} pegado />}
+        // `pegado`: en Competi la lista va bajo la cabecera fija, sin isla dinámica encima. Dentro
+        // de una hoja (ficha de persona) no hay control: el tirón ahí es el de cerrar la hoja.
+        refreshControl={
+          recargable ? <Recarga cargando={cargando} onRecargar={() => void cargar()} pegado /> : undefined
+        }
         onEndReachedThreshold={0.4}
         onEndReached={() => void cargarMas()}
         ListHeaderComponent={

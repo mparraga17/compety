@@ -80,7 +80,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: `rgba(230,236,233,0.18)`,
+    backgroundColor: tema.color.tirador,
     alignSelf: 'center',
     marginBottom: tema.espacio.l,
   },

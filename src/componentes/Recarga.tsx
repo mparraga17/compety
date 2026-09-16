@@ -1,5 +1,7 @@
 import { RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { hapticaMedia } from './haptica';
 import { tema } from '../tema';
 
 /**
@@ -9,9 +11,9 @@ import { tema } from '../tema';
  * era el gesto: era `progressViewOffset`.
  *
  * El `RefreshControl` de iOS pinta su rueda en el borde superior del `ScrollView`, o sea en y=0.
- * Y todas las pantallas de esta app reservan el hueco de la isla dinámica con
- * `paddingTop: seguroArriba` en el CONTENIDO, no en el propio scroll. Resultado: la rueda aparecía
- * DEBAJO de la isla dinámica, tapada por el hardware.
+ * Y todas las pantallas de esta app reservan el hueco de la isla dinámica en el CONTENIDO, no en
+ * el propio scroll. Resultado: la rueda aparecía DEBAJO de la isla dinámica, tapada por el
+ * hardware.
  *
  * El gesto funcionaba y los datos se recargaban, pero no había ninguna señal visible de que
  * estuviera pasando algo, que a efectos del usuario es exactamente lo mismo que estar roto. Es el
@@ -22,8 +24,9 @@ import { tema } from '../tema';
  * compartido, porque estaba repetido en seis pantallas y así el arreglo no se puede olvidar en la
  * séptima.
  *
- * 📌 El día que se instale `react-native-safe-area-context`, este offset sale de
- * `useSafeAreaInsets().top` en vez de la constante.
+ * ⭐ Desde el 15 sep el offset sale de `useSafeAreaInsets().top` (antes una constante de 56 que
+ * fallaba en más de un iPhone), y al soltar el gesto hay un toque háptico medio: es el momento
+ * en que el sistema toma el relevo del dedo, y Apple lo marca así en sus propias apps.
  */
 
 type Props = {
@@ -41,10 +44,14 @@ type Props = {
 };
 
 export function Recarga({ cargando, onRecargar, pegado = false }: Props) {
+  const insets = useSafeAreaInsets();
   return (
     <RefreshControl
       refreshing={cargando}
-      onRefresh={onRecargar}
+      onRefresh={() => {
+        hapticaMedia();
+        onRecargar();
+      }}
       // Color de la rueda en iOS. Sin esto sale gris del sistema, que sobre este fondo casi
       // negro apenas se distingue.
       tintColor={tema.color.marca}
@@ -52,7 +59,7 @@ export function Recarga({ cargando, onRecargar, pegado = false }: Props) {
       colors={[tema.color.marca]}
       progressBackgroundColor={tema.color.superficie}
       // ⭐ El arreglo: baja la rueda por debajo de la isla dinámica.
-      progressViewOffset={pegado ? 0 : tema.seguroArriba}
+      progressViewOffset={pegado ? 0 : insets.top}
     />
   );
 }

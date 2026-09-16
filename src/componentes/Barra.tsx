@@ -141,6 +141,10 @@ export function Columna({
   color = tema.color.marca,
   fondo = tema.color.linea,
   retardo = 0,
+  degradado,
+  ancho = '100%',
+  radio = 3,
+  opacidad = 1,
 }: {
   valor: number;
   /** Altura del carril, en puntos. Hace falta para compensar el escalado desde el centro. */
@@ -148,6 +152,20 @@ export function Columna({
   color?: string;
   fondo?: string;
   retardo?: number;
+  /**
+   * Degradado vertical del relleno, `[abajo, arriba]`. Manda sobre `color`.
+   *
+   * ⭐ Rediseño del 15 sep (regla 9d): una columna plana de un solo color se lee como un bloque;
+   * de tenue en la base a pleno en la punta se lee como una barra con cuerpo, y la punta, que es
+   * donde está el dato, es lo que más brilla. Mismo mecanismo que el brillo del podio.
+   */
+  degradado?: readonly [string, string];
+  /** Ancho dentro del carril. Al 62 % la columna tiene cuerpo sin parecer un botón. */
+  ancho?: DimensionValue;
+  /** Radio del remate. Con el 62 % de ancho, 5 redondea la punta sin hacerla una píldora. */
+  radio?: number;
+  /** Opacidad. Los días pasados van a 0,7 para que el de hoy destaque sin otro color. */
+  opacidad?: number;
 }) {
   const destino = Math.max(0.02, Math.min(1, valor));
   const reducir = useReducirMovimiento();
@@ -167,13 +185,23 @@ export function Columna({
     }).start();
   }, [v, destino, retardo, reducir]);
 
+  const vacia = valor <= 0;
   return (
     <Animated.View
       style={[
         s.columna,
+        // El degradado compone el relleno entero, así que al escalar viaja con la columna. Una
+        // columna vacía es un trazo del color de fondo: un día sin actividad es información.
+        vacia || degradado === undefined
+          ? { backgroundColor: vacia ? fondo : color }
+          : {
+              experimental_backgroundImage: `linear-gradient(to top, ${degradado[0]} 0%, ${degradado[1]} 100%)`,
+            },
         {
           height: alto,
-          backgroundColor: valor <= 0 ? fondo : color,
+          width: ancho,
+          borderRadius: radio,
+          opacity: vacia ? 1 : opacidad,
           transform: [
             // ⚠️ Translate PRIMERO en la lista (capa exterior). Con el orden inverso la
             // compensación quedaba dentro del escalado y la base de la columna flotaba durante
@@ -197,5 +225,6 @@ const s = StyleSheet.create({
   pista: { overflow: 'hidden', width: '100%' as DimensionValue },
   // Ancho completo: la proporción la hace el `scaleX`, no el `width`.
   relleno: { width: '100%' as DimensionValue },
-  columna: { width: '100%' as DimensionValue, borderRadius: 3 },
+  // Ancho y radio los pone cada uso: el gráfico de la semana al 62 %, el resto a todo el carril.
+  columna: {},
 });

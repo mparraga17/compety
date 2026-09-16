@@ -3,6 +3,7 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { Hoja } from './Hoja';
 import { Pulsable } from './Pulsable';
+import { Simbolo } from './Simbolo';
 import { CURVA, MS, useReducirMovimiento } from '../movimiento';
 import { tema } from '../tema';
 
@@ -82,8 +83,11 @@ export function Selector<T extends string>({
         accessibilityState={{ expanded: abierto }}
         accessibilityLabel={`${etiqueta ?? ''} ${elegida?.nombre ?? ''}`.trim()}
       >
-        <Text style={suave ? s.valorSuave : s.valor}>{elegida?.nombre ?? '·'}</Text>
-        {/* Chevron dibujado con dos vistas rotadas: sin librería de iconos. */}
+        <Text style={suave ? s.valorSuave : s.valor} numberOfLines={1}>
+          {elegida?.nombre ?? '·'}
+        </Text>
+        {/* El chevron del sistema. Antes dos vistas rotadas, de cuando un módulo nativo costaba
+            un build. */}
         <Animated.View
           style={[
             s.chevron,
@@ -99,8 +103,7 @@ export function Selector<T extends string>({
             },
           ]}
         >
-          <View style={[s.aspa, s.aspaIzq]} />
-          <View style={[s.aspa, s.aspaDer]} />
+          <Simbolo nombre="chevron.down" tamano={12} color={tema.color.textoTenue} peso="semibold" respaldo="⌄" />
         </Animated.View>
       </Pulsable>
 
@@ -126,7 +129,9 @@ export function Selector<T extends string>({
             >
               {/* Marca de selección, no un fondo de color: la jerarquía la hace el peso
                   tipográfico. Regla de la v2 del panel. */}
-              <Text style={s.marca}>{activa ? '✓' : ' '}</Text>
+              <View style={s.marca}>
+                {activa && <Simbolo nombre="checkmark" tamano={14} color={tema.color.marca} peso="semibold" respaldo="✓" />}
+              </View>
               <Text style={[s.opcionTexto, activa && s.opcionActiva]}>{o.nombre}</Text>
               {o.detalle !== undefined && <Text style={s.opcionDetalle}>{o.detalle}</Text>}
             </Pulsable>
@@ -138,8 +143,8 @@ export function Selector<T extends string>({
 }
 
 const s = StyleSheet.create({
-  // Fondo sutil y radio de 9, como el `.picker>button` de la maqueta. Sin fondo el selector no
-  // parecía tocable, que es parte de por qué la pantalla se sentía tosca.
+  // Fondo sutil, como el `.picker>button` de la maqueta. Sin fondo el selector no parecía
+  // tocable, que es parte de por qué la pantalla se sentía tosca. Radio `m`, el de los controles.
   control: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -147,21 +152,12 @@ const s = StyleSheet.create({
     minHeight: tema.tactil,
     paddingHorizontal: 13,
     backgroundColor: tema.color.superficieSutil,
-    borderRadius: 9,
+    borderRadius: tema.radio.m,
   },
   // Peso 500 como la maqueta, no 600: el selector no es un titular.
-  valor: { fontSize: 15, fontWeight: '500', color: tema.color.texto },
-  valorSuave: { ...tema.tipo.detalle, color: tema.color.textoSuave },
-  chevron: { width: 10, height: 10, marginTop: 2 },
-  aspa: {
-    position: 'absolute',
-    width: 6,
-    height: StyleSheet.hairlineWidth * 2,
-    backgroundColor: tema.color.textoTenue,
-    top: 4,
-  },
-  aspaIzq: { left: 0, transform: [{ rotate: '45deg' }] },
-  aspaDer: { right: 0, transform: [{ rotate: '-45deg' }] },
+  valor: { fontSize: 15, fontWeight: '500', color: tema.color.texto, flexShrink: 1 },
+  valorSuave: { ...tema.tipo.detalle, color: tema.color.textoSuave, flexShrink: 1 },
+  chevron: { width: 12, height: 12, marginTop: 1 },
 
   opcion: {
     flexDirection: 'row',
@@ -169,7 +165,7 @@ const s = StyleSheet.create({
     gap: tema.espacio.s,
     minHeight: tema.tactil,
   },
-  marca: { fontSize: 13, color: tema.color.marca, width: 14 },
+  marca: { width: 14, alignItems: 'center' },
   opcionTexto: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, flex: 1 },
   opcionActiva: { color: tema.color.texto, fontWeight: '500' },
   opcionDetalle: { ...tema.tipo.micro, color: tema.color.textoTenue, ...tema.cifras },

@@ -5,6 +5,7 @@ import { Aparece } from './Aparece';
 import { Ficha } from './Ficha';
 import { Hoja } from './Hoja';
 import { Pulsable } from './Pulsable';
+import { Simbolo } from './Simbolo';
 import { conValores, idiomaActual, textos } from '../i18n/textos';
 import type { ClaveCiencia } from '../motor/ciencia';
 import { OBJETIVO_MINUTOS } from '../motor/oms';
@@ -85,7 +86,15 @@ export function ChipRacha({ racha }: Props) {
         accessibilityLabel={`${t.rachaTitulo}. ${titulo}`}
         onPress={() => setAbierta(true)}
       >
-        <Text style={[s.llama, !encendida && s.llamaApagada]}>{'\u{1F525}'}</Text>
+        {/* La llama del sistema (rediseño del 15 sep). Encendida en el color del texto; apagada,
+            tenue: la señal sigue siendo la opacidad, no otro color. */}
+        <Simbolo
+          nombre="flame.fill"
+          tamano={16}
+          color={encendida ? tema.color.texto : tema.color.textoTenue}
+          peso="semibold"
+          respaldo={'\u{1F525}'}
+        />
         {visibles > 0 && <Text style={s.chipNumero}>{visibles}</Text>}
       </Pulsable>
 
@@ -127,7 +136,12 @@ export function ChipRacha({ racha }: Props) {
           rompió por causas ajenas, y que el efecto se atenúa si se puede reparar.
         */}
         <View style={s.comodin}>
-          <Text style={[s.comodinIcono, racha.comodines === 0 && s.llamaApagada]}>{'\u{1F6E1}\uFE0F'}</Text>
+          <Simbolo
+            nombre="shield.fill"
+            tamano={16}
+            color={racha.comodines > 0 ? tema.color.marca : tema.color.textoTenue}
+            respaldo={'\u{1F6E1}\uFE0F'}
+          />
           <Text style={s.comodinTexto}>
             {racha.comodines > 0 ? t.rachaComodin : t.rachaSinComodin}
           </Text>
@@ -155,19 +169,17 @@ export function ChipRacha({ racha }: Props) {
 }
 
 const s = StyleSheet.create({
-  // Pastilla al lado del botón de amigos, con su misma altura táctil y su mismo radio.
+  // Cápsula al lado del botón de amigos, con su misma altura táctil. Radio = alto/2: es una
+  // cápsula, no un rectángulo redondeado (rediseño del 15 sep, radios del tema).
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     minHeight: tema.tactil,
-    paddingHorizontal: 10,
-    borderRadius: tema.radio.m,
+    paddingHorizontal: 12,
+    borderRadius: tema.tactil / 2,
     backgroundColor: tema.color.superficieSutil,
   },
-  llama: { fontSize: 15 },
-  // Apagada = la semana en curso aún no está cumplida. La opacidad es la señal, no otro color.
-  llamaApagada: { opacity: 0.45 },
   chipNumero: { fontSize: 14, fontWeight: '600', color: tema.color.texto, ...tema.cifras },
 
   semanas: {
@@ -204,7 +216,7 @@ const s = StyleSheet.create({
     gap: tema.espacio.s,
     marginBottom: tema.espacio.l,
   },
-  comodinIcono: { fontSize: 15 },
+
   comodinTexto: { ...tema.tipo.detalle, color: tema.color.textoSuave, flex: 1, lineHeight: 19 },
 
   // El mensaje como bloque propio, con el fondo apenas perceptible de `progresoPropio`.

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { registrarSegundoPlano } from './src/avisos/segundoPlano';
 import { escucharToques, guardarToken, prepararCanal, prepararPush } from './src/avisos/push';
@@ -10,6 +11,8 @@ import { HALO_PODIO } from './src/componentes/Halo';
 import { Marca } from './src/componentes/Marca';
 import { Pestanas, type IdPestana } from './src/componentes/Pestanas';
 import { Pulsable } from './src/componentes/Pulsable';
+import { Simbolo } from './src/componentes/Simbolo';
+import { hapticaExito } from './src/componentes/haptica';
 import { guardaDeporte, guardaEsfuerzo, marcaCelebrado, yaCelebrado } from './src/datos/almacen';
 import { almacenNativo } from './src/datos/almacenNativo';
 import { alCerrarseSesion, sesionActual, type Cuenta, type EstadoSesion } from './src/datos/cuenta';
@@ -92,7 +95,23 @@ type Fiesta = {
   confetti?: boolean;
 } | null;
 
+/**
+ * Raíz: el proveedor del área segura envuelve a toda la app.
+ *
+ * ⭐ Rediseño del 15 sep. Hasta ahora el hueco de la isla dinámica era una constante (56) y el
+ * del indicador de inicio otra (24), y las dos estaban mal en más de un iPhone. Con el proveedor,
+ * cada pantalla lee los insets reales (`useSafeAreaInsets`) y la barra flotante se apoya donde
+ * toca en cada dispositivo.
+ */
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <Raiz />
+    </SafeAreaProvider>
+  );
+}
+
+function Raiz() {
   /**
    * ⚠️ `idioma` en estado aunque el valor real viva en `i18n/textos.ts`. Es lo que fuerza el
    * repintado: cambiar la variable del modulo no dispara ningun render por si solo.
@@ -122,6 +141,20 @@ export default function App() {
    */
   const [codigoEnlace, setCodigoEnlace] = useState<string | null>(null);
   const [cuenta, setCuenta] = useState<Cuenta | null>(null);
+  /**
+   * Avatar de la cabecera de las pestañas de datos (rediseño del 15 sep): antes solo Competi
+   * tenía camino al perfil; ahora las cinco lo tienen, y es el mismo avatar con tono de identidad.
+   */
+  const perfilCabecera = useMemo(
+    () =>
+      cuenta === null
+        ? null
+        : {
+            nombre: cuenta.nombre ?? cuenta.usuario ?? '?',
+            inicial: (cuenta.nombre ?? cuenta.usuario ?? '?').slice(0, 1).toUpperCase(),
+          },
+    [cuenta],
+  );
   const [ligas, setLigas] = useState<readonly LigaRemota[]>([]);
   /**
    * ⭐ La liga que enseña Competi. Vive aquí porque aquí se sabe cuál acabas de crear o a cuál
@@ -684,6 +717,8 @@ export default function App() {
         accessibilityLabel={donde}
         onPress={onPress}
       >
+        {/* El chevron de "atrás" del sistema delante de la palabra: el patrón de iOS. */}
+        <Simbolo nombre="chevron.left" tamano={14} color={tema.color.marca} peso="semibold" respaldo="‹" />
         <Text style={s.volverTexto}>{conValores(t.volverA, { donde })}</Text>
       </Pulsable>
     );
@@ -758,7 +793,13 @@ export default function App() {
           */}
           <View style={s.cuerpo}>
             <View style={[s.pestana, pestana !== 'hoy' && s.oculta]}>
-              <Hoy resultado={resultado} cargando={calculando} onRecargar={() => void cargarSalud()} />
+              <Hoy
+                resultado={resultado}
+                cargando={calculando}
+                onRecargar={() => void cargarSalud()}
+                perfil={perfilCabecera}
+                onPerfil={() => abrirModal('perfil')}
+              />
             </View>
 
             <View style={[s.pestana, pestana !== 'competi' && s.oculta]}>
@@ -789,6 +830,8 @@ export default function App() {
                 onRecargar={() => void cargarSalud()}
                 onDeclararEsfuerzo={(id, rpe) => void declararEsfuerzo(id, rpe)}
                 onCorregirDeporte={(id, tipo) => void corregirDeporte(id, tipo)}
+                perfil={perfilCabecera}
+                onPerfil={() => abrirModal('perfil')}
               />
             </View>
 
@@ -797,6 +840,8 @@ export default function App() {
                 datos={sueno}
                 cargando={cargandoSueno}
                 onRecargar={() => void cargarSueno()}
+                perfil={perfilCabecera}
+                onPerfil={() => abrirModal('perfil')}
               />
             </View>
 
@@ -811,10 +856,13 @@ export default function App() {
                 // de la OMS de arriba se quedaba vieja mientras la rueda giraba.
                 onRecargar={() => void refrescarSalud()}
                 onDiagnostico={() => abrirModal('diagnostico')}
+                perfil={perfilCabecera}
+                onPerfil={() => abrirModal('perfil')}
               />
             </View>
           </View>
 
+          {/* Flota sobre el cuerpo: el contenido pasa por debajo del cristal (ver `huecoBarra`). */}
           <Pestanas activa={pestana} onCambio={setPestana} />
         </>
       )}
@@ -880,6 +928,8 @@ export default function App() {
               // El código del enlace de invitación, ya puesto: solo queda confirmar.
               codigoInicial={modal === 'entrar-liga' ? (codigoEnlace ?? undefined) : undefined}
               onHecho={(ligaId) => {
+                // Entrar en una liga es un logro: toque de éxito al cerrarse la hoja.
+                hapticaExito();
                 setCodigoEnlace(null);
                 cerrarModal();
                 // Primero la lista, luego la elección: si se eligiera antes de que la lista
@@ -900,6 +950,7 @@ export default function App() {
             <Zona
               ligas={ligas}
               onHecho={() => {
+                hapticaExito();
                 void cargarLigas();
                 cerrarModal();
               }}
@@ -960,7 +1011,9 @@ const s = StyleSheet.create({
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   volver: {
     minHeight: tema.tactil,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: tema.espacio.l,
     // Dentro de una hoja `pageSheet` no hay isla dinámica que esquivar: la hoja ya cuelga
     // por debajo. Basta el espacio de una cabecera.

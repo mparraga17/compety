@@ -55,6 +55,35 @@ import type { FontVariant } from 'react-native';
  *    registro el toque, que es peor que el problema que se intentaba evitar. Y ademas: Apple revisa
  *    a mano, e ignorar un ajuste de accesibilidad del sistema es motivo de rechazo.
  *
+ * 9. ⭐⭐ **LA V2 QUITO LO QUE DELATABA "HECHO CON IA" Y NO PUSO NADA EN SU LUGAR (rediseno del
+ *    15 sep).** El usuario dijo que la app se veia "plana y aburrida", y el inventario lo
+ *    confirmo: un solo plano, separadores de un pixel, bloques al 7 % como unica superficie, un
+ *    halo al 0,18 que con brillo automatico desaparecia, y una escala tipografica con agujero
+ *    (11/13/15 y luego 62/76, nada en medio). La respuesta NO es volver a los bordes de color:
+ *    es lo que Apple usa para dar riqueza sin ruido, y por eso ahora hay:
+ *
+ *      a) **Cabecera grande de iOS** (`tituloGrande`, 28/700) con linea de contexto encima y el
+ *         avatar a la derecha en TODAS las pestanas. Revisa la regla del titulo de 15 px, que
+ *         era correcta para la maqueta (titulo de 30 px pegado a una cifra de 76) y se quedo
+ *         corta en la app: la cifra sigue mandando, pero la pantalla tenia que decir donde estas
+ *         (regla 5) y las cuatro pestanas de datos no tenian camino al perfil.
+ *      b) **Materiales**: la barra de pestanas es una capsula flotante de cristal con el
+ *         contenido pasando por debajo (`GlassView` en iOS 26, desenfoque en anteriores), y las
+ *         cabeceras fijas separan con un borde de scroll en degradado, no con una linea.
+ *      c) **Halo mas presente y con significado**: el centro sube hasta el borde de la pantalla
+ *         y la caida es empinada, asi el color vive en la franja segura, donde no hay texto, y
+ *         a la altura del primer texto la intensidad es LA MISMA que antes (contraste medido).
+ *         En Hoy el color dice como va la semana contra tu banda; en Competi, tu metal.
+ *      d) **Graficos con cuerpo**: columnas con remate redondo y degradado vertical, la banda de
+ *         "sesion habitual" pintada detras, y un techo real (100 puntos) para que el grafico
+ *         no este siempre lleno (regla 2 aplicada al grafico, que la incumplia).
+ *      e) **Iconos del sistema** (SF Symbols) en vez de glifos dibujados y de emojis de interfaz.
+ *         Los emojis de DEPORTE se quedan: los aprobo el usuario y llevan identidad.
+ *
+ *    Y lo que sigue prohibido, para que nadie lo reintroduzca por inercia: bordes de color,
+ *    paleta multicolor, tarjetas en todo, mayusculas con tracking, el anillo de Whoop, engordar
+ *    la cifra, animar el cambio de pestana y cualquier color de acento nuevo.
+ *
  * ---
  *
  * Sistema de diseño. Paleta de la propia Fitbit Air, elegida por el usuario en el panel v2.
@@ -87,6 +116,10 @@ import type { FontVariant } from 'react-native';
 
 /** Blanco menta de la paleta, en rgb. El texto tenue sale de aqui con alpha. */
 const TINTA = '230,236,233';
+/** Periwinkle de marca, en rgb. Los tintes de marca (fondos de chip, avatar propio) salen de aqui. */
+export const MARCA_RGB = '198,203,240';
+/** Coral, en rgb. */
+export const BAJO_RGB = '249,64,79';
 
 export const tema = {
   color: {
@@ -123,6 +156,25 @@ export const tema = {
 
     marca: '#c6cbf0',
     bajo: '#f9404f',
+    /**
+     * ⭐ Tintes de marca y de coral para FONDOS (chip de amigos, avatar propio, etiquetas).
+     *
+     * Antes habia tres alphas distintos de marca repartidos por las pantallas (0,14 / 0,16 /
+     * 0,18) y dos de coral: la misma idea con cinco valores. Un tinte de cada, y se acabo.
+     */
+    marcaTenue: `rgba(${MARCA_RGB},0.15)`,
+    bajoTenue: `rgba(${BAJO_RGB},0.14)`,
+    /** Tirador de las hojas. Mas visible que `linea` porque es un control, no un separador. */
+    tirador: `rgba(${TINTA},0.18)`,
+    /** Velo oscuro detras de la celebracion. */
+    velo: 'rgba(10,11,14,0.86)',
+    /**
+     * Cristal de respaldo para la barra flotante cuando no hay `GlassView` (iOS < 26): el
+     * desenfoque de `BlurView` con este tinte encima. Y el filo superior claro, que es la luz
+     * pegando en el material (Apple: *"bright top edge = light catching the material"*).
+     */
+    cristal: 'rgba(28,30,38,0.58)',
+    cristalFilo: 'rgba(255,255,255,0.07)',
     /** Fondo de campos y avatares. */
     superficie: '#1d1f27',
     /**
@@ -140,18 +192,30 @@ export const tema = {
     bronce: '#c08b62',
   },
   espacio: { xs: 4, s: 8, m: 16, l: 24, xl: 32 },
-  radio: { s: 8, m: 12, l: 20 },
+  /**
+   * ⭐ Cuatro radios y ninguno mas. Habia siete repartidos por las pantallas (4, 8, 9, 11, 12,
+   * 17, 20), que es el tipo de descuido que no se sabe nombrar pero se nota.
+   *   s  etiquetas y controles pequenos      m  botones, campos, bloques, filas destacadas
+   *   l  tarjeta de celebracion               xl  la barra flotante de pestanas
+   * Las capsulas (chips, pastillas) llevan `alto / 2`, no un radio del tema.
+   */
+  radio: { s: 8, m: 12, l: 20, xl: 32 },
   /** Altura minima de un objetivo tactil. La guia de Apple pide 44 puntos. */
   tactil: 44,
   /**
-   * Hueco de arriba para no quedar debajo de la isla dinamica.
-   *
-   * ⚠️ Es un valor fijo A FALTA de `react-native-safe-area-context`, que es la solucion correcta
-   * pero es un MODULO NATIVO: instalarlo ahora invalidaria el build en curso y obligaria a
-   * recompilar otra vez. 56 cubre la isla del iPhone 14 Pro en adelante y el notch anterior.
-   * 📌 Cambiar por `useSafeAreaInsets()` en el proximo rebuild que toque nativos.
+   * ⭐ La barra de pestanas flotante. Sus medidas viven aqui porque el CONTENIDO de cada pestana
+   * las necesita para dejar hueco debajo (`paddingBottom`): la barra ya no ocupa una franja
+   * fija, el contenido pasa por debajo del cristal.
    */
-  seguroArriba: 56,
+  barra: {
+    alto: 64,
+    /** Margen a los lados de la capsula. */
+    margen: 16,
+    /** Separacion minima con el borde inferior cuando no hay indicador de inicio. */
+    abajoMinimo: 16,
+    /** Aire que el contenido deja por debajo, sumado a la barra y al area segura. */
+    aireContenido: 16,
+  },
 
   /**
    * ⭐ Cifras tabulares. Va en TODO numero que se muestre.
@@ -184,6 +248,18 @@ export const tema = {
      * Mismas medidas que el titulo de las hojas modales, para que todo lo que es tarea abra igual.
      */
     tituloPantalla: { fontSize: 22, fontWeight: '600' as const, letterSpacing: -0.4 },
+    /**
+     * ⭐ Titulo GRANDE de pestana, el "large title" de iOS (rediseno del 15 sep, regla 9a).
+     *
+     * 28 y no los 34 del sistema: la app es densa y oscura, y a 34 el titulo vuelve a competir
+     * con la cifra, que es lo que la regla del titulo de 15 px queria evitar. Tracking negativo
+     * porque el texto grande lo pide (Apple: *"tighten large text"*) y el interlineado justo.
+     */
+    tituloGrande: { fontSize: 28, fontWeight: '700' as const, letterSpacing: -0.7, lineHeight: 34 },
+    /** El mismo titulo cuando la cabecera se compacta al hacer scroll. Medidas de la barra de iOS. */
+    tituloCompacto: { fontSize: 17, fontWeight: '600' as const, letterSpacing: -0.3 },
+    /** Titular de una fila de caracteristica (bienvenida) o de un nombre destacado. */
+    destacado: { fontSize: 17, fontWeight: '600' as const, letterSpacing: -0.2 },
     /** Texto de apoyo bajo el titulo. */
     sub: { fontSize: 13, lineHeight: 18 },
     seccion: { fontSize: 15, fontWeight: '600' as const },

@@ -69,7 +69,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  yo: { backgroundColor: 'rgba(198,203,240,0.16)' },
+  yo: { backgroundColor: tema.color.marcaTenue },
   letra: { fontWeight: '600', color: tema.color.textoSuave },
   letraYo: { color: tema.color.marca },
 });

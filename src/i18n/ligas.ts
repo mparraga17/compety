@@ -57,6 +57,31 @@ export function nombreHorizonte(id: IdHorizonte, idioma: Idioma): string {
 }
 
 /**
+ * Nombre CORTO del horizonte, para el control segmentado de la clasificación (15 sep): cinco
+ * opciones en una fila no dejan sitio a "Últimos 30 días". "Semana" es la de calendario y
+ * "7 días" la móvil, que es la distinción que importa.
+ */
+const HORIZONTES_CORTOS_ES: Record<IdHorizonte, string> = {
+  wtd: 'Semana',
+  d7: '7 días',
+  mtd: 'Mes',
+  d30: '30 días',
+  ytd: 'Año',
+};
+
+const HORIZONTES_CORTOS_EN: Record<IdHorizonte, string> = {
+  wtd: 'Week',
+  d7: '7 days',
+  mtd: 'Month',
+  d30: '30 days',
+  ytd: 'Year',
+};
+
+export function nombreHorizonteCorto(id: IdHorizonte, idioma: Idioma): string {
+  return idioma === 'es' ? HORIZONTES_CORTOS_ES[id] : HORIZONTES_CORTOS_EN[id];
+}
+
+/**
  * Etiqueta de la persona que usa la app.
  *
  * Se resuelve aqui, no en el dato. En el JSON esa persona va como `{ nombre: null, esYo: true }`

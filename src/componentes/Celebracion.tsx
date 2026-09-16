@@ -3,6 +3,7 @@ import { Animated, Dimensions, Easing, StyleSheet, Text, View } from 'react-nati
 
 import { HALO_PODIO, Halo } from './Halo';
 import { Pulsable } from './Pulsable';
+import { hapticaExito } from './haptica';
 import { CURVA, RESORTE, resorte, useReducirMovimiento } from '../movimiento';
 import { textos } from '../i18n/textos';
 import { tema } from '../tema';
@@ -237,6 +238,9 @@ export function Celebracion({
       for (const r of rayos) r.setValue(0);
       return;
     }
+    // ⭐ El toque háptico de logro va AQUÍ, junto al `start()` del velo: mismo fotograma que lo
+    // visual (regla de armonía de Apple). Con movimiento reducido también: no es movimiento.
+    hapticaExito();
     if (reducir) {
       // Fundido simple y ya está: el contenido es la celebración, no el movimiento. Los rayos
       // quedan puestos de inicio: son parte del cuadro, lo que se quita es el desplazamiento.
@@ -362,7 +366,7 @@ const s = StyleSheet.create({
   velo: {
     // ⚠️ `absoluteFill` y no `absoluteFillObject`: RN 0.86 solo tipa el primero.
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(10,11,14,0.86)',
+    backgroundColor: tema.color.velo,
     alignItems: 'center',
     justifyContent: 'center',
     padding: tema.espacio.l,

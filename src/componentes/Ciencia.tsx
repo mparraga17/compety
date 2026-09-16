@@ -3,6 +3,7 @@ import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { Hoja, estilosHoja } from './Hoja';
 import { Pulsable } from './Pulsable';
+import { Simbolo } from './Simbolo';
 import { fichaDe, hayFicha, type ClaveCiencia } from '../motor/ciencia';
 import { conValores, idiomaActual, textos } from '../i18n/textos';
 import { tema } from '../tema';
@@ -48,11 +49,9 @@ export function Ciencia({ ids }: Props) {
         accessibilityRole="button"
         accessibilityLabel={t.enQueNosBasamos}
       >
-        {/* Círculo con la i, dibujado con vistas: `@expo/vector-icons` arrastra `expo-font`,
-            que es nativo y obligaría a recompilar. */}
-        <View style={s.icono}>
-          <Text style={s.iconoTexto}>i</Text>
-        </View>
+        {/* La "i" del sistema. Antes un círculo dibujado con vistas, de cuando un módulo nativo
+            costaba un build. */}
+        <Simbolo nombre="info.circle" tamano={16} color={tema.color.textoSuave} respaldo="i" />
         <Text style={s.botonTexto}>{t.enQueNosBasamos}</Text>
       </Pulsable>
 
@@ -101,17 +100,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     // Fondo apenas perceptible, sin borde de color. Es la regla de la v2 del panel.
     backgroundColor: `rgba(230,236,233,0.05)`,
-    borderRadius: 11,
+    borderRadius: tema.radio.m,
   },
-  icono: {
-    width: 15,
-    height: 15,
-    borderRadius: 7.5,
-    borderWidth: 1.2,
-    borderColor: tema.color.textoSuave,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconoTexto: { fontSize: 10, fontWeight: '600', color: tema.color.textoSuave, lineHeight: 12 },
   botonTexto: { fontSize: 13.5, color: tema.color.textoSuave },
 });

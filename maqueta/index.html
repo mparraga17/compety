@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compety · maqueta del rediseño (15 sep 2026)</title>
+<!--
+  MAQUETA, NO LA APP. Réplica en HTML de las pantallas con las 10 propuestas del rediseño
+  aplicadas, para verlas en Chrome a tamaño de iPhone antes de tocar React Native.
+
+  Se abre con #hoy, #hoy-scroll, #competi, #sesiones, #salud, #sueno o #bienvenida.
+  Los tokens son los de src/tema.ts. Lo que aquí es CSS del navegador tiene su equivalente
+  en RN: radial/linear-gradient → experimental_backgroundImage (core), backdrop-filter →
+  GlassView (iOS 26) / BlurView, iconos → SF Symbols con expo-symbols.
+
+  ⚠️ La fuente es la del sistema (Segoe UI en Windows), no SF Pro: el ritmo vertical y el
+  peso 200 de la cifra se verán distintos en el iPhone. Lo que se valida aquí es jerarquía,
+  color, profundidad y layout, no la letra.
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --fondo: #14151a;
+    --texto: #e6ece9;
+    --tinta: 230,236,233;
+    --suave: rgba(230,236,233,.62);
+    --tenue: rgba(230,236,233,.52);
+    --linea: rgba(230,236,233,.14);
+    --sutil: rgba(230,236,233,.07);
+    --marca: #c6cbf0;
+    --marca-rgb: 198,203,240;
+    --bajo: #f9404f;
+    --bajo-rgb: 249,64,79;
+    --superficie: #1d1f27;
+    --oro: #d9c07a;
+    --plata: #c2c8cc;
+    --bronce: #c08b62;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; }
+  body {
+    font-family: -apple-system, "SF Pro Text", system-ui, "Segoe UI", sans-serif;
+    color: var(--texto);
+    -webkit-font-smoothing: antialiased;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* El teléfono: 393×852 lógicos (iPhone 15/16 Pro). */
+  .tel {
+    position: relative;
+    width: 393px;
+    height: 852px;
+    margin: 0 auto;
+    background: var(--fondo);
+    overflow: hidden;
+  }
+  .pantalla { display: none; position: absolute; inset: 0; }
+  .pantalla.activa { display: block; }
+
+  /* Barra de estado falsa, solo para que el área segura se vea ocupada como en el iPhone. */
+  .estado {
+    position: absolute; top: 0; left: 0; right: 0; height: 54px; z-index: 5;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 0 30px 8px; font-size: 15px; font-weight: 600; pointer-events: none;
+  }
+  .estado .isla {
+    position: absolute; left: 50%; top: 11px; transform: translateX(-50%);
+    width: 124px; height: 36px; border-radius: 20px; background: #000;
+  }
+
+  .scroll { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .contenido { position: relative; padding: 0 24px 130px; }
+
+  /* P2 · Halo: más presente en la franja segura, misma intensidad que hoy a la altura del texto. */
+  /*
+    Geometría: el centro de la elipse queda 40 px por encima de la pantalla (antes 140), así el
+    borde superior recibe ~0,26 y no ~0,12 como hoy. La caída es empinada a propósito: a la
+    altura del primer texto (y≈70) baja a ~0,12 y a la de la cifra (y≈180) a ~0,04. Con eso el
+    contraste del texto NO empeora respecto a la app actual, y el color vive en la franja segura.
+  */
+  .halo-caja { position: absolute; top: 0; left: 0; right: 0; height: 360px; overflow: hidden; pointer-events: none; }
+  .halo {
+    position: absolute; top: -40px; left: -60px; right: -60px; height: 400px;
+    background: radial-gradient(ellipse farthest-side at center top,
+      rgba(var(--h), calc(var(--hi) * 1.2)) 0%,
+      rgba(var(--h), calc(var(--hi) * .86)) 12%,
+      rgba(var(--h), calc(var(--hi) * .36)) 30%,
+      rgba(var(--h), calc(var(--hi) * .12)) 55%,
+      rgba(var(--h), 0) 85%);
+  }
+  .halo-caja.fija { position: absolute; z-index: 0; }
+
+  /* P1 · Cabecera grande de iOS. */
+  .cabecera { position: relative; display: flex; align-items: flex-end; justify-content: space-between; padding-top: 70px; }
+  /* En `suave`, no en `tenue`: es la línea de "dónde estoy" y va sobre la parte más clara del halo. */
+  .contexto { font-size: 13px; line-height: 18px; color: var(--suave); }
+  .titulo { font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -.7px; margin: 2px 0 0; }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 18px; display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 14px; flex: none;
+    background: rgba(var(--t), .15); color: rgb(var(--t));
+  }
+  .avatar.yo { background: rgba(var(--marca-rgb), .16); color: var(--marca); }
+  .cabecera .avatar { margin-bottom: 4px; }
+
+  /* Cabecera compacta (estado con scroll): borde de scroll en degradado, sin hairline. */
+  .compacta {
+    position: absolute; top: 0; left: 0; right: 0; height: 100px; z-index: 4;
+    background: linear-gradient(to bottom, var(--fondo) 0%, var(--fondo) 62%, rgba(20,21,26,0) 100%);
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12px;
+    font-size: 17px; font-weight: 600; letter-spacing: -.3px;
+  }
+
+  /* Héroe: cifra + frase en paralelo (igual que hoy). */
+  .hero { display: flex; align-items: center; gap: 18px; padding: 16px 0; }
+  .cifra { min-width: 96px; }
+  .cifra .n { font-size: 62px; line-height: 62px; font-weight: 200; letter-spacing: -2.5px; }
+  .cifra .u { font-size: 11px; line-height: 15px; color: var(--tenue); max-width: 88px; }
+  .frase { flex: 1; font-size: 14px; line-height: 20px; color: var(--texto); opacity: .9; }
+
+  .datos { display: flex; gap: 26px; padding: 18px 0; margin-top: 12px; border-top: 1px solid var(--linea); }
+  .dato { display: grid; gap: 3px; }
+  .dato .k { font-size: 11px; line-height: 15px; color: var(--tenue); }
+  .dato .v { font-size: 19px; font-weight: 500; }
+
+  /* P3 · Gráfico con banda "sesión habitual" y columnas con cuerpo. */
+  .grafico { position: relative; margin-top: 24px; }
+  .banda { position: absolute; left: 0; right: 0; background: var(--sutil); border-radius: 6px; }
+  .banda-etq { position: absolute; right: 0; font-size: 10px; color: var(--tenue); transform: translateY(-14px); }
+  .columnas { position: relative; display: flex; gap: 6px; height: 120px; align-items: flex-end; }
+  .col { flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%; }
+  /* Columna al 62 % del hueco, como las barras de la app Salud: cuerpo sin parecer un botón. */
+  .col i {
+    display: block; width: 62%; border-radius: 5px 5px 3px 3px;
+    background: linear-gradient(to top, rgba(var(--marca-rgb), .5), rgb(var(--marca-rgb)));
+  }
+  .col.pasado i { opacity: .7; }
+  .col.vacio i { height: 2px; background: var(--linea); border-radius: 1px; opacity: 1; }
+  .iniciales { display: flex; gap: 6px; margin-top: 6px; }
+  .iniciales span { flex: 1; text-align: center; font-size: 11px; color: var(--tenue); }
+  .iniciales span.hoy { color: var(--marca); font-weight: 600; }
+  .leyenda { font-size: 11px; line-height: 15px; color: var(--tenue); margin-top: 8px; }
+
+  .seccion-fila { display: flex; justify-content: space-between; align-items: baseline; margin-top: 28px; margin-bottom: 4px; }
+  .seccion { font-size: 15px; font-weight: 600; color: var(--suave); }
+  .cab-puntos { font-size: 11px; color: var(--tenue); }
+  .fila { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--linea); }
+  .fila .medio { flex: 1; min-width: 0; }
+  .fila .nombre { font-size: 15px; line-height: 20px; }
+  .fila .detalle { font-size: 11px; line-height: 15px; color: var(--tenue); margin-top: 2px; }
+  .fila .pts { font-size: 19px; font-weight: 500; }
+  .emoji { font-size: 20px; width: 28px; text-align: center; }
+
+  .ciencia {
+    display: flex; align-items: center; gap: 10px; margin-top: 22px; min-height: 44px; padding: 0 14px;
+    border-radius: 12px; background: rgba(var(--tinta), .05); color: var(--suave); font-size: 13.5px;
+  }
+  .ciencia svg { width: 16px; height: 16px; fill: var(--suave); flex: none; }
+
+  /* P6 · Barra de pestañas flotante en cristal. */
+  .pestanas {
+    position: absolute; left: 16px; right: 16px; bottom: 22px; height: 64px; z-index: 6;
+    display: flex; border-radius: 32px;
+    background: rgba(28,30,38,.58);
+    backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
+  }
+  .pestanas a {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    color: var(--tenue); text-decoration: none; font-size: 10px;
+  }
+  .pestanas a svg { width: 22px; height: 22px; fill: currentColor; }
+  .pestanas a.on { color: var(--marca); font-weight: 600; }
+  .indicador { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.35); z-index: 7; }
+
+  /* Competi */
+  .cab-competi { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 60px 24px 0; }
+  .wordmark { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+  .chips { display: flex; align-items: center; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border-radius: 20px;
+    background: rgba(28,30,38,.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06); font-size: 14px; font-weight: 600;
+  }
+  .chip svg { width: 16px; height: 16px; fill: currentColor; }
+  .chip.marca { color: var(--marca); background: rgba(var(--marca-rgb), .14); font-size: 13px; }
+  .subtabs { display: flex; padding: 14px 24px 0; gap: 0; position: relative; z-index: 2; }
+  .subtabs span { width: 104px; font-size: 15px; font-weight: 600; color: var(--tenue); padding-bottom: 10px; position: relative; }
+  .subtabs span.on { color: var(--texto); }
+  .subtabs span.on::after { content: ""; position: absolute; left: 0; bottom: 0; width: 28px; height: 2px; border-radius: 1px; background: var(--marca); }
+  .selectores { display: flex; gap: 8px; padding: 12px 24px 0; align-items: center; }
+  .selector {
+    display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 13px; border-radius: 12px;
+    background: var(--sutil); font-size: 15px; font-weight: 500; flex: 1; min-width: 0;
+  }
+  .selector svg { width: 12px; height: 12px; fill: none; stroke: var(--tenue); stroke-width: 2; flex: none; margin-left: auto; }
+  .selector .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .segmentado { display: flex; background: var(--sutil); border-radius: 12px; padding: 3px; height: 40px; flex: none; }
+  .segmentado span { padding: 0 12px; display: flex; align-items: center; border-radius: 9px; font-size: 13px; color: var(--suave); }
+  .segmentado span.on { background: rgba(var(--tinta), .12); color: var(--texto); font-weight: 600; }
+  .bloque { padding: 18px 24px 0; }
+  .liga { font-size: 22px; font-weight: 600; letter-spacing: -.4px; }
+  .liga-sub { font-size: 11px; line-height: 15px; color: var(--tenue); margin-top: 2px; }
+  .hero-liga { display: flex; align-items: flex-start; gap: 16px; margin: 14px 0 22px; }
+  .hero-liga .ord { font-size: 62px; line-height: 62px; font-weight: 200; letter-spacing: -2.5px; min-width: 84px; }
+  .hero-liga .de { font-size: 11px; color: var(--tenue); }
+  .caza { height: 3px; border-radius: 2px; background: var(--sutil); margin-top: 10px; overflow: hidden; }
+  .caza i { display: block; height: 100%; width: 72%; background: var(--marca); border-radius: 2px; }
+  .tabla .fila { gap: 10px; padding: 12px 0; }
+  .tabla .fila.yo { background: var(--sutil); border-radius: 12px; margin: 0 -12px; padding: 12px; border-top-color: transparent; }
+  .tabla .fila.yo + .fila { border-top-color: transparent; }
+  .rango { width: 22px; font-size: 13px; color: var(--tenue); text-align: right; }
+  .rango.p1 { color: var(--oro); font-weight: 600; }
+  .rango.p2 { color: var(--plata); font-weight: 600; }
+  .rango.p3 { color: var(--bronce); font-weight: 600; }
+  .tabla .avatar { width: 34px; height: 34px; font-size: 13px; }
+  .tabla .nombre { display: flex; align-items: center; gap: 6px; }
+  .tabla .nombre svg { width: 12px; height: 12px; fill: var(--oro); }
+  .barra { height: 2px; border-radius: 1px; background: var(--sutil); margin-top: 7px; overflow: hidden; }
+  .barra i { display: block; height: 100%; background: var(--marca); }
+  .barra.p1 i { background: linear-gradient(to right, rgba(217,192,122,.4), var(--oro)); }
+  .barra.p2 i { background: linear-gradient(to right, rgba(194,200,204,.4), var(--plata)); }
+  .barra.p3 i { background: linear-gradient(to right, rgba(192,139,98,.4), var(--bronce)); }
+  .tabla .pts.p1 { color: var(--oro); } .tabla .pts.p2 { color: var(--plata); } .tabla .pts.p3 { color: var(--bronce); }
+  .acciones2 { display: flex; gap: 10px; margin-top: 22px; }
+  .pill {
+    flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 22px; background: var(--sutil); color: var(--marca); font-weight: 600; font-size: 15px;
+  }
+  .pill svg { width: 16px; height: 16px; fill: currentColor; }
+  .codigo { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; font-size: 11px; color: var(--tenue); }
+  .codigo b { font-size: 13px; color: var(--marca); font-weight: 600; }
+  .temporada { margin-top: 28px; }
+  .cierre { background: var(--sutil); border-radius: 12px; padding: 14px 12px; margin-top: 10px; }
+  .cierre .k { font-size: 11px; color: var(--tenue); } .cierre .v { font-size: 15px; font-weight: 600; margin-top: 2px; } .cierre .d { font-size: 13px; color: var(--suave); margin-top: 2px; }
+  .t-fila { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--linea); font-size: 15px; }
+  .t-fila .rango { width: 18px; }
+  .t-fila .trofeos { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 19px; font-weight: 500; }
+  .t-fila .trofeos svg { width: 15px; height: 15px; fill: var(--oro); }
+
+  /* Sesiones */
+  .dia-fila { display: flex; justify-content: space-between; align-items: baseline; margin-top: 20px; }
+  .dia-fila b { font-size: 13px; font-weight: 500; color: var(--suave); }
+  .dia-fila span { font-size: 13px; font-weight: 500; color: var(--tenue); }
+  .dia-fila span small { font-size: 11px; }
+  .ses { display: flex; align-items: stretch; gap: 10px; padding: 10px 0; }
+  .rail { width: 9px; position: relative; flex: none; }
+  .rail::before { content: ""; position: absolute; left: 4px; top: -10px; bottom: -10px; width: 1px; background: var(--linea); }
+  .ses.ultimo .rail::before { bottom: 50%; }
+  .rail::after { content: ""; position: absolute; left: -2px; top: 12px; width: 13px; height: 13px; border-radius: 7px; background: var(--marca); box-shadow: 0 0 0 3px var(--fondo); }
+  .ses .medio { flex: 1; }
+  .ses .nombre { display: flex; align-items: center; gap: 6px; font-size: 15px; line-height: 20px; }
+  .tag { font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 6px; background: rgba(var(--marca-rgb), .14); color: var(--marca); }
+  .tag.aviso { background: rgba(var(--bajo-rgb), .14); color: #f9808a; }
+  .ses .detalle { font-size: 11px; line-height: 15px; color: var(--tenue); margin-top: 2px; }
+  .zonas { display: flex; gap: 2px; height: 3px; margin-top: 7px; border-radius: 2px; overflow: hidden; }
+  .zonas i { display: block; height: 100%; background: var(--marca); }
+  .ses .der { text-align: right; }
+  .ses .der .pts { font-size: 17px; font-weight: 500; }
+  .ses .der .u { font-size: 11px; color: var(--tenue); }
+
+  /* Salud / Sueño */
+  .medidor { display: flex; align-items: flex-end; gap: 10px; padding: 16px 0 0; }
+  .medidor .n { font-size: 76px; line-height: 76px; font-weight: 200; letter-spacing: -3.5px; }
+  .medidor .l { font-size: 11px; color: var(--suave); letter-spacing: .4px; padding-bottom: 12px; }
+  .segmentos { display: flex; gap: 3px; margin-top: 10px; }
+  .segmentos i { flex: 1; height: 4px; border-radius: 1px; background: var(--linea); }
+  .segmentos i.on { background: var(--marca); }
+  .segmentos i:first-child { border-radius: 2px 1px 1px 2px; } .segmentos i:last-child { border-radius: 1px 2px 2px 1px; }
+  .exceso { font-size: 11px; color: var(--marca); margin-top: 8px; }
+  .frase-sola { font-size: 14px; line-height: 20px; margin-top: 10px; }
+  .forma { display: flex; align-items: center; gap: 18px; margin-top: 8px; }
+  .forma .n { font-size: 46px; line-height: 50px; font-weight: 200; letter-spacing: -1.5px; min-width: 96px; }
+  .metrica { padding: 14px 0; border-top: 1px solid var(--linea); }
+  .metrica .cab { display: flex; justify-content: space-between; align-items: baseline; }
+  .metrica .val { font-size: 24px; font-weight: 300; letter-spacing: -.5px; }
+  .metrica .val small { font-size: 12px; color: var(--suave); margin-left: 4px; letter-spacing: 0; }
+  .metrica .val.mejor { color: var(--marca); } .metrica .val.peor { color: var(--bajo); }
+  .metrica .estado-l { font-size: 11px; color: var(--tenue); margin-top: 2px; }
+  .linea-banda { position: relative; height: 44px; margin-top: 8px; }
+  .linea-banda .b { position: absolute; left: 0; right: 0; top: 14px; height: 16px; background: var(--sutil); border-radius: 4px; }
+  .puntos { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
+  .puntos i { flex: 1; display: block; height: 3px; border-radius: 2px; background: rgba(var(--tinta), .55); opacity: .55; position: relative; }
+  .puntos i.m { background: var(--marca); } .puntos i.p { background: var(--bajo); }
+  .puntos i.ult { height: 5px; opacity: 1; }
+  .noches { position: relative; margin-top: 24px; }
+  .noches .cols { position: relative; display: flex; gap: 3px; height: 120px; align-items: flex-end; }
+  .noches .cols i { flex: 1; display: block; border-radius: 4px 4px 2px 2px; background: linear-gradient(to top, rgba(var(--marca-rgb), .45), rgb(var(--marca-rgb))); position: relative; }
+  .noches .cols i.corta { background: linear-gradient(to top, rgba(var(--bajo-rgb), .3), rgba(var(--bajo-rgb), .7)); }
+  .noches .cols i.pasada { opacity: .6; }
+  .noches .cols i b { position: absolute; left: 0; right: 0; bottom: 100%; height: var(--siesta); background: rgba(var(--tinta), .30); border-radius: 3px 3px 0 0; }
+  .ref { position: absolute; left: 0; right: 0; height: 1px; background: rgba(var(--tinta), .28); }
+  .ref span { position: absolute; right: 0; top: -15px; font-size: 10px; color: var(--tenue); }
+  .mini { display: grid; gap: 10px; margin-top: 18px; }
+  .mini .m { display: flex; align-items: center; gap: 10px; }
+  .mini .m label { width: 92px; font-size: 13px; color: var(--suave); }
+  .mini .m .barra { flex: 1; margin: 0; height: 3px; }
+  .mini .m .v { font-size: 14px; } .mini .m .v small { font-size: 11px; color: var(--tenue); }
+  .nota { font-size: 11px; line-height: 15px; color: var(--tenue); margin-top: 14px; }
+
+  /* Bienvenida */
+  .bienvenida .contenido { padding-top: 72px; min-height: 852px; display: flex; flex-direction: column; }
+  .logo { width: 72px; height: 72px; }
+  .bienvenida .titulo { margin-top: 20px; }
+  .intro { font-size: 15px; line-height: 22px; color: var(--suave); margin-top: 8px; }
+  .caract { display: flex; gap: 16px; align-items: flex-start; margin-top: 26px; }
+  .caract svg { width: 30px; height: 30px; fill: var(--marca); flex: none; margin-top: 2px; }
+  .caract b { display: block; font-size: 17px; font-weight: 600; letter-spacing: -.2px; }
+  .caract p { margin: 3px 0 0; font-size: 15px; line-height: 21px; color: var(--suave); }
+  .aviso { font-size: 13px; line-height: 18px; color: var(--bajo); margin-top: 26px; }
+  .cta { margin-top: auto; }
+  .boton { height: 50px; border-radius: 25px; background: var(--marca); color: var(--fondo); font-weight: 600; font-size: 17px; display: flex; align-items: center; justify-content: center; }
+  .mas-tarde { text-align: center; font-size: 13px; color: var(--suave); margin-top: 14px; }
+
+  /* Navegador de la maqueta, fuera del teléfono. */
+  .nav { position: fixed; left: 12px; top: 12px; display: grid; gap: 6px; font-size: 12px; z-index: 99; }
+  .nav a { color: #9aa0a6; text-decoration: none; }
+  .nav a:hover { color: #fff; }
+  @media (max-width: 430px) { .nav { display: none; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Aproximaciones de SF Symbols; en la app son los símbolos reales vía expo-symbols. -->
+    <symbol id="i-chart" viewBox="0 0 24 24"><rect x="3" y="12" width="4.5" height="9" rx="1.5"/><rect x="9.75" y="5" width="4.5" height="16" rx="1.5"/><rect x="16.5" y="9" width="4.5" height="12" rx="1.5"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21.2s-8.2-4.9-10.2-9.8C.3 7.7 3 4.2 6.6 4.2c2.2 0 3.9 1.2 5.4 3 1.5-1.8 3.2-3 5.4-3 3.6 0 6.3 3.5 4.8 7.2-2 4.9-10.2 9.8-10.2 9.8z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.6 14.6A9 9 0 0 1 9.4 3.4 9 9 0 1 0 20.6 14.6z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><circle cx="4.5" cy="6.5" r="1.8"/><circle cx="4.5" cy="12" r="1.8"/><circle cx="4.5" cy="17.5" r="1.8"/><rect x="8.5" y="5.3" width="12.5" height="2.4" rx="1.2"/><rect x="8.5" y="10.8" width="12.5" height="2.4" rx="1.2"/><rect x="8.5" y="16.3" width="12.5" height="2.4" rx="1.2"/></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 8.5l4.6 3.8L12 5.5l4.4 6.8L21 8.5l-2.1 10.2H5.1z"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 3h12v2h3v3a4 4 0 0 1-4 4h-.4A6 6 0 0 1 13 15.9V18h3v2H8v-2h3v-2.1A6 6 0 0 1 7.4 12H7a4 4 0 0 1-4-4V5h3zm-1 4v1a2 2 0 0 0 2 2V7zm14 0h-2v3a2 2 0 0 0 2-2z"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12.6 2c.7 4.2 5.4 5.9 5.4 11a6 6 0 0 1-12 0c0-2.3 1.1-3.8 2.2-5.1.2 1.9 1.3 3.1 2.5 3.4C10.2 8.6 9.6 5.2 12.6 2z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2a6.5 6.5 0 0 0-6.5 6.5C5.5 13.5 12 22 12 22s6.5-8.5 6.5-13.5A6.5 6.5 0 0 0 12 2zm0 9.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4z"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-1 6h2v7h-2zm0-3h2v2h-2z"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><path d="M14.5 3a6.5 6.5 0 0 0-6.2 8.5L2 17.8V22h4.2l1.4-1.4v-2.2h2.2l1.5-1.5a6.5 6.5 0 1 0 3.2-13.9zm2 4a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></symbol>
+    <symbol id="i-run" viewBox="0 0 24 24"><path d="M14.5 2.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM9.8 7.2l3.6.9 2.4 2.7 3 .9-.6 1.9-3.8-1.1-1.4-1.6-1.3 3 2.9 2.4-.7 5.2-2-.3.5-4-3-2.4L7.7 20l-1.9-.7 2.5-6.4 1-3.2-2.2.7-1.4 2.6-1.8-1 1.9-3.6z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H5v12h14V10h-2V7a5 5 0 0 0-5-5zm0 2a3 3 0 0 1 3 3v3H9V7a3 3 0 0 1 3-3z"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.8"/><path d="M2 19c0-3.9 3.1-6.5 7-6.5s7 2.6 7 6.5zM14.7 12.7c3.7-.5 7.3 1.6 7.3 5.3h-4.4c-.2-2.1-1.3-3.9-2.9-5.3z"/></symbol>
+    <!-- La marca (C + rayo), copiada de marca/logo.html. -->
+    <g id="marca" transform="translate(82 6) scale(.89 .98)">
+      <path d="M 621 317 C 711 244 747 157 683 106 C 594 36 435 56 302 157 C 159 266 119 462 181 634 C 247 815 405 902 566 875 C 699 853 793 768 845 625 L 758 691 C 699 732 637 758 568 770 C 456 789 354 738 307 635 C 256 525 281 393 365 305 C 441 225 543 194 613 219 C 651 233 655 276 621 317 Z"/>
+      <path d="M 625 191 L 688 249 L 470 468 L 558 493 L 291 761 L 383 538 L 291 513 Z"/>
+    </g>
+  </defs>
+</svg>
+
+<nav class="nav">
+  <a href="#hoy">hoy</a><a href="#hoy-scroll">hoy (scroll)</a><a href="#competi">competi</a>
+  <a href="#sesiones">sesiones</a><a href="#salud">salud</a><a href="#sueno">sueño</a><a href="#bienvenida">bienvenida</a>
+</nav>
+
+<div class="tel">
+
+  <!-- ══════════ HOY ══════════ -->
+  <section class="pantalla" id="hoy">
+    <div class="estado"><span>9:41</span><span class="isla"></span><span>●●●</span></div>
+    <div class="scroll"><div class="contenido">
+      <div class="halo-caja"><div class="halo" style="--h:198,203,240; --hi:.28"></div></div>
+      <header class="cabecera">
+        <div><div class="contexto">martes 15 de septiembre</div><h1 class="titulo">Hoy</h1></div>
+        <span class="avatar yo">M</span>
+      </header>
+
+      <div class="hero">
+        <div class="cifra"><div class="n num">312</div><div class="u">puntos de esfuerzo</div></div>
+        <p class="frase">Tu última sesión de <b>correr</b> quedó por encima de tu rango habitual (35–65 puntos por sesión).</p>
+      </div>
+
+      <div class="datos">
+        <div class="dato"><span class="k">sesiones</span><span class="v num">4</span></div>
+        <div class="dato"><span class="k">deportes</span><span class="v num">3</span></div>
+        <div class="dato"><span class="k">minutos</span><span class="v num">186</span></div>
+      </div>
+
+      <div class="grafico">
+        <div class="columnas">
+          <!-- banda: sesión habitual 35–65 sobre un tope de 130 → 27 %–50 % del carril -->
+          <div class="banda" style="bottom:27%; height:23%"></div>
+          <span class="banda-etq" style="bottom:50%">sesión habitual · 35–65</span>
+          <div class="col pasado"><i style="height:37%"></i></div>
+          <div class="col pasado"><i style="height:71%"></i></div>
+          <div class="col vacio"><i></i></div>
+          <div class="col pasado"><i style="height:47%"></i></div>
+          <div class="col vacio"><i></i></div>
+          <div class="col pasado"><i style="height:60%"></i></div>
+          <div class="col"><i style="height:25%"></i></div>
+        </div>
+        <div class="iniciales"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span class="hoy">D</span></div>
+      </div>
+      <div class="leyenda">Correr · Fuerza · Pádel</div>
+
+      <div class="seccion-fila"><span class="seccion">Últimas sesiones</span><span class="cab-puntos">Puntos</span></div>
+      <div class="fila"><span class="emoji">🏃</span><div class="medio"><div class="nombre">Correr</div><div class="detalle">hoy 7:40 · 38 min · 158 lpm</div></div><span class="pts num">33</span></div>
+      <div class="fila"><span class="emoji">🎾</span><div class="medio"><div class="nombre">Pádel</div><div class="detalle">sáb 13 · 19:30 · 62 min · 141 lpm</div></div><span class="pts num">78</span></div>
+      <div class="fila"><span class="emoji">🏋️</span><div class="medio"><div class="nombre">Fuerza</div><div class="detalle">jue 11 · 18:05 · 46 min · 122 lpm</div></div><span class="pts num">61</span></div>
+      <div class="fila"><span class="emoji">🏃</span><div class="medio"><div class="nombre">Correr</div><div class="detalle">mar 9 · 7:35 · 40 min · 161 lpm</div></div><span class="pts num">92</span></div>
+      <div class="fila"><span class="emoji">🏋️</span><div class="medio"><div class="nombre">Fuerza</div><div class="detalle">lun 8 · 18:10 · 40 min · sin pulso</div></div><span class="pts num">48</span></div>
+
+      <div class="ciencia"><svg><use href="#i-info"/></svg><span>Cómo se calculan los puntos · 7 fuentes</span></div>
+    </div></div>
+    <nav class="pestanas">
+      <a href="#competi"><svg viewBox="0 0 1024 1024"><use href="#marca"/></svg>Competi</a>
+      <a href="#hoy" class="on"><svg><use href="#i-chart"/></svg>Hoy</a>
+      <a href="#salud"><svg><use href="#i-heart"/></svg>Salud</a>
+      <a href="#sueno"><svg><use href="#i-moon"/></svg>Sueño</a>
+      <a href="#sesiones"><svg><use href="#i-list"/></svg>Sesiones</a>
+    </nav>
+    <div class="indicador"></div>
+  </section>
+
+  <!-- ══════════ HOY, con scroll (cabecera compacta) ══════════ -->
+  <section class="pantalla" id="hoy-scroll">
+    <div class="estado"><span>9:41</span><span class="isla"></span><span>●●●</span></div>
+    <div class="compacta">Hoy</div>
+    <div class="scroll" id="scroll-hoy"><div class="contenido" style="padding-top:0; transform: translateY(-190px)">
+      <div class="halo-caja"><div class="halo" style="--h:198,203,240; --hi:.28"></div></div>
+      <header class="cabecera">
+        <div><div class="contexto">martes 15 de septiembre</div><h1 class="titulo">Hoy</h1></div>
+        <span class="avatar yo">M</span>
+      </header>
+      <div class="hero">
+        <div class="cifra"><div class="n num">312</div><div class="u">puntos de esfuerzo</div></div>
+        <p class="frase">Tu última sesión de <b>correr</b> quedó por encima de tu rango habitual (35–65 puntos por sesión).</p>
+      </div>
+      <div class="datos">
+        <div class="dato"><span class="k">sesiones</span><span class="v num">4</span></div>
+        <div class="dato"><span class="k">deportes</span><span class="v num">3</span></div>
+        <div class="dato"><span class="k">minutos</span><span class="v num">186</span></div>
+      </div>
+      <div class="grafico">
+        <div class="columnas">
+          <div class="banda" style="bottom:27%; height:23%"></div>
+          <span class="banda-etq" style="bottom:50%">sesión habitual · 35–65</span>
+          <div class="col pasado"><i style="height:37%"></i></div>
+          <div class="col pasado"><i style="height:71%"></i></div>
+          <div class="col vacio"><i></i></div>
+          <div class="col pasado"><i style="height:47%"></i></div>
+          <div class="col vacio"><i></i></div>
+          <div class="col pasado"><i style="height:60%"></i></div>
+          <div class="col"><i style="height:25%"></i></div>
+        </div>
+        <div class="iniciales"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span class="hoy">D</span></div>
+      </div>
+      <div class="leyenda">Correr · Fuerza · Pádel</div>
+      <div class="seccion-fila"><span class="seccion">Últimas sesiones</span><span class="cab-puntos">Puntos</span></div>
+      <div class="fila"><span class="emoji">🏃</span><div class="medio"><div class="nombre">Correr</div><div class="detalle">hoy 7:40 · 38 min · 158 lpm</div></div><span class="pts num">33</span></div>
+      <div class="fila"><span class="emoji">🎾</span><div class="medio"><div class="nombre">Pádel</div><div class="detalle">sáb 13 · 19:30 · 62 min · 141 lpm</div></div><span class="pts num">78</span></div>
+      <div class="fila"><span class="emoji">🏋️</span><div class="medio"><div class="nombre">Fuerza</div><div class="detalle">jue 11 · 18:05 · 46 min · 122 lpm</div></div><span class="pts num">61</span></div>
+      <div class="fila"><span class="emoji">🏃</span><div class="medio"><div class="nombre">Correr</div><div class="detalle">mar 9 · 7:35 · 40 min · 161 lpm</div></div><span class="pts num">92</span></div>
+      <div class="fila"><span class="emoji">🏋️</span><div class="medio"><div class="nombre">Fuerza</div><div class="detalle">lun 8 · 18:10 · 40 min · sin pulso</div></div><span class="pts num">48</span></div>
+      <div class="ciencia"><svg><use href="#i-info"/></svg><span>Cómo se calculan los puntos · 7 fuentes</span></div>
+    </div></div>
+    <nav class="pestanas">
+      <a href="#competi"><svg viewBox="0 0 1024 1024"><use href="#marca"/></svg>Competi</a>
+      <a href="#hoy" class="on"><svg><use href="#i-chart"/></svg>Hoy</a>
+      <a href="#salud"><svg><use href="#i-heart"/></svg>Salud</a>
+      <a href="#sueno"><svg><use href="#i-moon"/></svg>Sueño</a>
+      <a href="#sesiones"><svg><use href="#i-list"/></svg>Sesiones</a>
+    </nav>
+    <div class="indicador"></div>
+  </section>
+
+  <!-- ══════════ COMPETI ══════════ -->
+  <section class="pantalla" id="competi">
+    <div class="estado"><span>9:41</span><span class="isla"></span><span>●●●</span></div>
+    <div class="halo-caja fija"><div class="halo" style="--h:194,200,204; --hi:.24"></div></div>
+    <header class="cab-competi">
+      <span class="wordmark">Competi</span>
+      <div class="chips">
+        <span class="chip"><svg><use href="#i-flame"/></svg><span class="num">3</span></span>
+        <span class="chip marca"><svg><use href="#i-plus"/></svg>Amigos</span>
+        <span class="avatar yo">M</span>
+      </div>
+    </header>
+    <div class="subtabs"><span class="on">Para ti</span><span>Amigos</span></div>
+    <div class="scroll" style="top:158px"><div class="contenido" style="padding:0 0 130px">
+      <div class="selectores">
+        <span class="selector"><svg><use href="#i-pin"/></svg><span class="txt">Chavales Z72</span><svg><use href="#i-chevron"/></svg></span>
+        <span class="segmentado"><span class="on">Semana</span><span>Mes</span><span>Año</span></span>
+      </div>
+      <div class="bloque">
+        <div class="liga">Chavales Z72</div>
+        <div class="liga-sub">7 miembros · liga privada · cierra el domingo</div>
+        <div class="hero-liga">
+          <div><div class="ord num" style="color:var(--plata)">2º</div><div class="de">de 7</div></div>
+          <div style="flex:1; padding-top:10px">
+            <p class="frase" style="margin:0">A 41 puntos de Sergio. Una sesión fuerte te pone primero.</p>
+            <div class="caza"><i></i></div>
+          </div>
+        </div>
+
+        <div class="tabla">
+          <div class="fila"><span class="rango p1 num">1</span><span class="avatar" style="--t:163,196,160">S</span><div class="medio"><div class="nombre">Sergio <svg><use href="#i-crown"/></svg></div><div class="detalle">5 sesiones · semana fuerte</div><div class="barra p1"><i style="width:100%"></i></div></div><span class="pts p1 num">353</span></div>
+          <div class="fila yo"><span class="rango p2 num">2</span><span class="avatar yo">M</span><div class="medio"><div class="nombre"><b>Manuel</b></div><div class="detalle">4 sesiones</div><div class="barra p2"><i style="width:88%"></i></div></div><span class="pts p2 num">312</span></div>
+          <div class="fila"><span class="rango p3 num">3</span><span class="avatar" style="--t:138,176,214">A</span><div class="medio"><div class="nombre">Álvaro</div><div class="detalle">3 sesiones</div><div class="barra p3"><i style="width:64%"></i></div></div><span class="pts p3 num">226</span></div>
+          <div class="fila"><span class="rango num">4</span><span class="avatar" style="--t:226,169,178">P</span><div class="medio"><div class="nombre">Pablo</div><div class="detalle">3 sesiones</div><div class="barra"><i style="width:52%"></i></div></div><span class="pts num">184</span></div>
+          <div class="fila"><span class="rango num">5</span><span class="avatar" style="--t:196,160,200">J</span><div class="medio"><div class="nombre">Jorge</div><div class="detalle">2 sesiones</div><div class="barra"><i style="width:31%"></i></div></div><span class="pts num">110</span></div>
+          <div class="fila"><span class="rango num">6</span><span class="avatar" style="--t:186,192,140">D</span><div class="medio"><div class="nombre">Dani</div><div class="detalle">1 sesión</div><div class="barra"><i style="width:16%"></i></div></div><span class="pts num">57</span></div>
+          <div class="fila"><span class="rango num">7</span><span class="avatar" style="--t:142,202,196">R</span><div class="medio"><div class="nombre">Rubén</div><div class="detalle">sin sesiones</div><div class="barra"><i style="width:0"></i></div></div><span class="pts num" style="color:var(--tenue)">0</span></div>
+        </div>
+
+        <div class="codigo"><span>Código de la liga · <b>Z72-KQ4</b></span><b>Compartir</b></div>
+
+        <div class="acciones2">
+          <span class="pill"><svg><use href="#i-plus"/></svg>Crear liga</span>
+          <span class="pill"><svg><use href="#i-key"/></svg>Entrar con código</span>
+        </div>
+
+        <div class="temporada">
+          <span class="seccion" style="color:var(--texto)">Temporada</span>
+          <div class="cierre"><div class="k">semana 37</div><div class="v">Cierra el domingo a las 23:59</div><div class="d">El primero se lleva el trofeo de la semana.</div></div>
+          <div class="t-fila" style="margin-top:8px"><span class="rango num">1</span>Sergio<span class="trofeos num"><svg><use href="#i-trophy"/></svg><span style="color:var(--oro)">4</span></span></div>
+          <div class="t-fila"><span class="rango num">2</span>Manuel<span class="trofeos num"><svg><use href="#i-trophy"/></svg>3</span></div>
+          <div class="t-fila"><span class="rango num">3</span>Álvaro<span class="trofeos num"><svg><use href="#i-trophy"/></svg>1</span></div>
+        </div>
+
+        <div class="ciencia"><svg><use href="#i-info"/></svg><span>Cómo se compite en igualdad · 4 fuentes</span></div>
+      </div>
+    </div></div>
+    <nav class="pestanas">
+      <a href="#competi" class="on"><svg viewBox="0 0 1024 1024"><use href="#marca"/></svg>Competi</a>
+      <a href="#hoy"><svg><use href="#i-chart"/></svg>Hoy</a>
+      <a href="#salud"><svg><use href="#i-heart"/></svg>Salud</a>
+      <a href="#sueno"><svg><use href="#i-moon"/></svg>Sueño</a>
+      <a href="#sesiones"><svg><use href="#i-list"/></svg>Sesiones</a>
+    </nav>
+    <div class="indicador"></div>
+  </section>
+
+  <!-- ══════════ SESIONES ══════════ -->
+  <section class="pantalla" id="sesiones">
+    <div class="estado"><span>9:41</span><span class="isla"></span><span>●●●</span></div>
+    <div class="scroll"><div class="contenido">
+      <div class="halo-caja"><div class="halo" style="--h:198,203,240; --hi:.28"></div></div>
+      <header class="cabecera">
+        <div><div class="contexto">últimos 30 días</div><h1 class="titulo">Sesiones</h1></div>
+        <span class="avatar yo">M</span>
+      </header>
+      <div class="hero">
+        <div class="cifra"><div class="n num">27</div><div class="u">sesiones en total</div></div>
+        <p class="frase">Casi una al día en septiembre: la racha más larga desde que hay registro.</p>
+      </div>
+      <div class="datos">
+        <div class="dato"><span class="k">con pulso</span><span class="v num">24</span></div>
+        <div class="dato"><span class="k">minutos</span><span class="v num">1 240</span></div>
+        <div class="dato"><span class="k">fusionadas</span><span class="v num">3</span></div>
+      </div>
+
+      <div class="dia-fila"><b>Hoy, martes 15</b><span class="num">33 <small>puntos</small></span></div>
+      <div class="ses ultimo"><div class="rail"></div><span class="emoji">🏃</span><div class="medio"><div class="nombre">Correr</div><div class="detalle">38 min · 5,4 km · 158 lpm</div><div class="zonas" style="width:34%"><i style="flex:1; opacity:.3"></i><i style="flex:2; opacity:.55"></i><i style="flex:3; opacity:.8"></i><i style="flex:2"></i></div></div><div class="der"><div class="pts num">33</div><div class="u">puntos</div></div></div>
+
+      <div class="dia-fila"><b>Sábado 13</b><span class="num">78 <small>puntos</small></span></div>
+      <div class="ses ultimo"><div class="rail"></div><span class="emoji">🎾</span><div class="medio"><div class="nombre">Pádel <span class="tag">fusionada</span></div><div class="detalle">62 min · 141 lpm · Fitbit + Watch</div><div class="zonas" style="width:78%"><i style="flex:2; opacity:.3"></i><i style="flex:3; opacity:.55"></i><i style="flex:3; opacity:.8"></i><i style="flex:1"></i></div></div><div class="der"><div class="pts num">78</div><div class="u">puntos</div></div></div>
+
+      <div class="dia-fila"><b>Jueves 11</b><span class="num">61 <small>puntos</small></span></div>
+      <div class="ses ultimo"><div class="rail"></div><span class="emoji">🏋️</span><div class="medio"><div class="nombre">Fuerza</div><div class="detalle">46 min · 122 lpm</div><div class="zonas" style="width:61%"><i style="flex:3; opacity:.3"></i><i style="flex:3; opacity:.55"></i><i style="flex:1; opacity:.8"></i></div></div><div class="der"><div class="pts num">61</div><div class="u">puntos</div></div></div>
+
+      <div class="dia-fila"><b>Martes 9</b><span class="num">92 <small>puntos</small></span></div>
+      <div class="ses ultimo"><div class="rail"></div><span class="emoji">🏃</span><div class="medio"><div class="nombre">Correr</div><div class="detalle">40 min · 6,1 km · 161 lpm</div><div class="zonas" style="width:92%"><i style="flex:1; opacity:.3"></i><i style="flex:2; opacity:.55"></i><i style="flex:4; opacity:.8"></i><i style="flex:3"></i></div></div><div class="der"><div class="pts num">92</div><div class="u">puntos</div></div></div>
+
+      <div class="dia-fila"><b>Lunes 8</b><span class="num">48 <small>puntos</small></span></div>
+      <div class="ses"><div class="rail"></div><span class="emoji">🏋️</span><div class="medio"><div class="nombre">Fuerza <span class="tag">a mano</span></div><div class="detalle">40 min · sin pulso · estimada por RPE</div></div><div class="der"><div class="pts num">48</div><div class="u">estimada</div></div></div>
+      <div class="ses ultimo"><div class="rail"></div><span class="emoji">🚶</span><div class="medio"><div class="nombre">Caminar <span class="tag aviso">no puntúa</span></div><div class="detalle">22 min · 96 lpm · por debajo del mínimo</div></div><div class="der"><div class="pts num" style="color:var(--tenue)">—</div><div class="u">no puntúa</div></div></div>
+
+      <div class="ciencia"><svg><use href="#i-info"/></svg><span>Cómo se fusionan y se estiman · 5 fuentes</span></div>
+    </div></div>
+    <nav class="pestanas">
+      <a href="#competi"><svg viewBox="0 0 1024 1024"><use href="#marca"/></svg>Competi</a>
+      <a href="#hoy"><svg><use href="#i-chart"/></svg>Hoy</a>
+      <a href="#salud"><svg><use href="#i-heart"/></svg>Salud</a>
+      <a href="#sueno"><svg><use href="#i-moon"/></svg>Sueño</a>
+      <a href="#sesiones" class="on"><svg><use href="#i-list"/></svg>Sesiones</a>
+    </nav>
+    <div class="indicador"></div>
+  </section>
+
+  <!-- ══════════ SALUD ══════════ -->
+  <section class="pantalla" id="salud">
+    <div class="estado"><span>9:41</span><span class="isla"></span><span>●●●</span></div>
+    <div class="scroll"><div class="contenido">
+      <div class="halo-caja"><div class="halo" style="--h:198,203,240; --hi:.28"></div></div>
+      <header class="cabecera">
+        <div><div class="contexto">esta semana · objetivo OMS</div><h1 class="titulo">Salud</h1></div>
+        <span class="avatar yo">M</span>
+      </header>
+      <div class="medidor"><span class="n num">412</span><span class="l">min de actividad</span></div>
+      <div class="segmentos"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <div class="exceso">×2,7 el objetivo de 150 min</div>
+      <p class="frase-sola">Semana completa: 150 min moderados o 75 vigorosos, y fuerza dos días.</p>
+      <div class="datos">
+        <div class="dato"><span class="k">moderada</span><span class="v num">248</span></div>
+        <div class="dato"><span class="k">vigorosa</span><span class="v num">82</span></div>
+        <div class="dato"><span class="k">días fuerza</span><span class="v num">2</span></div>
+      </div>
+
+      <div class="seccion-fila"><span class="seccion">Forma</span></div>
+      <div class="forma"><span class="n num" style="color:var(--marca)">+8 %</span><p class="frase" style="margin:0">Estás rindiendo más que tu media de 90 días con el mismo pulso.</p></div>
+      <div class="nota">Comparado con tu base personal, no con tablas generales.</div>
+
+      <div class="seccion-fila"><span class="seccion">Tu cuerpo</span><span class="cab-puntos">últimos 14 días</span></div>
+      <div class="metrica"><div class="cab"><span class="nombre">Pulso en reposo</span><span class="val num mejor">52<small>lpm</small></span></div><div class="estado-l">Mejor que tu rango · habitual 54–58 · bajando 2 lpm</div>
+        <div class="linea-banda"><div class="b"></div><div class="puntos"><i style="height:14px"></i><i style="height:16px"></i><i style="height:18px"></i><i style="height:17px"></i><i style="height:20px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:22px"></i><i style="height:19px"></i><i style="height:24px"></i><i style="height:25px"></i><i class="m" style="height:27px"></i><i class="m" style="height:28px"></i><i class="m ult" style="height:30px"></i></div></div></div>
+      <div class="metrica"><div class="cab"><span class="nombre">Variabilidad (HRV)</span><span class="val num">61<small>ms</small></span></div><div class="estado-l">Dentro de tu rango · habitual 52–66 · estable</div>
+        <div class="linea-banda"><div class="b"></div><div class="puntos"><i style="height:20px"></i><i style="height:22px"></i><i style="height:18px"></i><i style="height:24px"></i><i style="height:21px"></i><i style="height:19px"></i><i style="height:23px"></i><i style="height:20px"></i><i style="height:22px"></i><i style="height:25px"></i><i style="height:21px"></i><i style="height:22px"></i><i style="height:23px"></i><i class="ult" style="height:24px"></i></div></div></div>
+      <div class="metrica"><div class="cab"><span class="nombre">Respiración</span><span class="val num peor">16,2<small>rpm</small></span></div><div class="estado-l">Por encima de tu rango · habitual 13,8–15,4</div>
+        <div class="linea-banda"><div class="b"></div><div class="puntos"><i style="height:20px"></i><i style="height:21px"></i><i style="height:22px"></i><i style="height:20px"></i><i style="height:23px"></i><i style="height:21px"></i><i style="height:22px"></i><i style="height:24px"></i><i style="height:22px"></i><i style="height:25px"></i><i style="height:28px"></i><i class="p" style="height:33px"></i><i class="p" style="height:34px"></i><i class="p ult" style="height:36px"></i></div></div></div>
+      <div class="metrica"><div class="cab"><span class="nombre">Oxígeno</span><span class="val num">97<small>%</small></span></div><div class="estado-l">Dentro de tu rango · habitual 96–98</div></div>
+
+      <div class="ciencia"><svg><use href="#i-info"/></svg><span>Qué dice cada métrica · 6 fuentes</span></div>
+    </div></div>
+    <nav class="pestanas">
+      <a href="#competi"><svg viewBox="0 0 1024 1024"><use href="#marca"/></svg>Competi</a>
+      <a href="#hoy"><svg><use href="#i-chart"/></svg>Hoy</a>
+      <a href="#salud" class="on"><svg><use href="#i-heart"/></svg>Salud</a>
+      <a href="#sueno"><svg><use href="#i-moon"/></svg>Sueño</a>
+      <a href="#sesiones"><svg><use href="#i-list"/></svg>Sesiones</a>
+    </nav>
+    <div class="indicador"></div>
+  </section>
+
+  <!-- ══════════ SUEÑO ══════════ -->
+  <section class="pantalla" id="sueno">
+    <div class="estado"><span>9:41</span><span class="isla"></span><span>●●●</span></div>
+    <div class="scroll"><div class="contenido">
+      <div class="halo-caja"><div class="halo" style="--h:198,203,240; --hi:.28"></div></div>
+      <header class="cabecera">
+        <div><div class="contexto">anoche · 7 h 12 min</div><h1 class="titulo">Sueño</h1></div>
+        <span class="avatar yo">M</span>
+      </header>
+      <div class="medidor"><span class="n num">81</span><span class="l">de 100</span></div>
+      <div class="segmentos"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+      <p class="frase-sola">Noche dentro de tu normal: 7 h 12 min con un 91 % de eficiencia.</p>
+
+      <div class="noches">
+        <div class="cols">
+          <div class="banda" style="bottom:52%; height:22%"></div>
+          <span class="banda-etq" style="bottom:74%">tu normal · 6 h 40 – 8 h 05</span>
+          <div class="ref" style="bottom:58%"><span>7 h</span></div>
+          <i class="pasada" style="height:62%"></i><i class="pasada" style="height:70%"><b style="--siesta:8px"></b></i><i class="pasada corta" style="height:38%"></i><i class="pasada" style="height:66%"></i><i class="pasada" style="height:72%"></i><i class="pasada" style="height:58%"></i><i class="pasada" style="height:75%"></i>
+          <i class="pasada" style="height:64%"></i><i class="pasada" style="height:69%"><b style="--siesta:12px"></b></i><i class="pasada" style="height:61%"></i><i class="pasada corta" style="height:41%"></i><i class="pasada" style="height:67%"></i><i class="pasada" style="height:71%"></i><i style="height:60%"></i>
+        </div>
+        <div class="leyenda">14 noches · <span style="color:rgba(249,64,79,.8)">■</span> corta · <span style="color:rgba(230,236,233,.4)">■</span> siesta</div>
+      </div>
+
+      <div class="mini">
+        <div class="m"><label>Duración</label><div class="barra"><i style="width:82%"></i></div><span class="v num">7 h 12 <small>/ 8 h 30</small></span></div>
+        <div class="m"><label>Eficiencia</label><div class="barra"><i style="width:91%"></i></div><span class="v num">91 <small>%</small></span></div>
+        <div class="m"><label>Regularidad</label><div class="barra"><i style="width:68%"></i></div><span class="v num">±38 <small>min</small></span></div>
+      </div>
+
+      <div class="datos">
+        <div class="dato"><span class="k">media 14 noches</span><span class="v num">6 h 58</span></div>
+        <div class="dato"><span class="k">eficiencia</span><span class="v num">89 %</span></div>
+        <div class="dato"><span class="k">siestas</span><span class="v num">2</span></div>
+      </div>
+
+      <div class="seccion-fila"><span class="seccion">Fases</span><span class="cab-puntos">anoche</span></div>
+      <div class="datos" style="margin-top:0; border-top:0; padding-top:8px">
+        <div class="dato"><span class="k">profundo</span><span class="v num">1 h 24</span></div>
+        <div class="dato"><span class="k">REM</span><span class="v num">1 h 41</span></div>
+        <div class="dato"><span class="k">despierto</span><span class="v num">31 min</span></div>
+      </div>
+      <div class="nota">Las fases son una estimación de la pulsera, no una polisomnografía.</div>
+
+      <div class="ciencia"><svg><use href="#i-info"/></svg><span>Qué mide la puntuación · 5 fuentes</span></div>
+    </div></div>
+    <nav class="pestanas">
+      <a href="#competi"><svg viewBox="0 0 1024 1024"><use href="#marca"/></svg>Competi</a>
+      <a href="#hoy"><svg><use href="#i-chart"/></svg>Hoy</a>
+      <a href="#salud"><svg><use href="#i-heart"/></svg>Salud</a>
+      <a href="#sueno" class="on"><svg><use href="#i-moon"/></svg>Sueño</a>
+      <a href="#sesiones"><svg><use href="#i-list"/></svg>Sesiones</a>
+    </nav>
+    <div class="indicador"></div>
+  </section>
+
+  <!-- ══════════ BIENVENIDA ══════════ -->
+  <section class="pantalla bienvenida" id="bienvenida">
+    <div class="estado"><span>9:41</span><span class="isla"></span><span>●●●</span></div>
+    <div class="scroll"><div class="contenido" style="padding-bottom:34px">
+      <div class="halo-caja"><div class="halo" style="--h:198,203,240; --hi:.30"></div></div>
+      <svg class="logo" viewBox="0 0 1024 1024" style="fill:var(--marca)"><use href="#marca"/></svg>
+      <h1 class="titulo">Compite con tu esfuerzo, no con tus kilómetros</h1>
+      <p class="intro">Compety lee tus entrenos de Salud y los puntúa contra tu propio normal. Una clase de barre dura vale lo mismo que un 5k duro.</p>
+
+      <div class="caract"><svg><use href="#i-heart"/></svg><div><b>Leemos tus entrenos y tu pulso</b><p>Los que ya están en la app Salud, de tu Fitbit, Apple Watch o Garmin.</p></div></div>
+      <div class="caract"><svg><use href="#i-lock"/></svg><div><b>El cálculo se hace en tu iPhone</b><p>Al servidor solo viaja tu puntuación. Nunca un dato de salud.</p></div></div>
+      <div class="caract"><svg><use href="#i-people"/></svg><div><b>Ligas con amigos o con tu barrio</b><p>Privadas con código, o divisiones por zona con gente de tu ciudad.</p></div></div>
+
+      <p class="aviso">No es una app médica. Nada de lo que verás es un diagnóstico ni un consejo.</p>
+
+      <div class="cta">
+        <div class="boton">Continuar</div>
+        <div class="mas-tarde">Más tarde</div>
+      </div>
+    </div></div>
+    <div class="indicador"></div>
+  </section>
+
+</div>
+
+<script>
+  // Navegación por hash, sin framework: es una maqueta.
+  function muestra() {
+    const id = (location.hash || '#hoy').slice(1);
+    document.querySelectorAll('.pantalla').forEach((p) => p.classList.toggle('activa', p.id === id));
+  }
+  addEventListener('hashchange', muestra);
+  muestra();
+</script>
+</body>
+</html>

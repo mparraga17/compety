@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, View, type DimensionValue } from 'react-native';
 
 import { CURVA, MS, useReducirMovimiento } from '../movimiento';
-import { tema } from '../tema';
+import { FONDO_RGB, tema } from '../tema';
 
 /**
  * Barra de proporción que CRECE hasta su valor.
@@ -128,96 +128,131 @@ export function Barra({
   );
 }
 
+/** Un tramo de la columna: proporción del carril (0-1) y su color. De abajo arriba. */
+export type TramoColumna = { readonly valor: number; readonly color: string };
+
+/** Aire entre dos tramos, en puntos. Del color del fondo: son piezas de la misma columna. */
+const SEPARACION = 2;
+
 /**
- * Columna vertical del gráfico de la semana.
+ * Columna vertical del gráfico de la semana, apilada por deporte.
  *
  * ⚠️ Aparte de `Barra` y no un parámetro suyo, porque el eje cambia el problema: aquí se escala en
  * Y desde ABAJO, y el `translateY` de compensación depende de la altura en píxeles, que aquí viene
  * por parámetro porque el carril tiene alto fijo conocido.
+ *
+ * ⭐ Tramos (16 sep, petición del usuario): un día con varios deportes ya no es una columna lisa
+ * que los suma, sino un tramo por deporte, con su tinte, separados por dos puntos de fondo. El
+ * reparto de alturas lo hace Yoga con `flexGrow` proporcional a cada valor dentro de un alto
+ * exacto, así que la suma de tramos más separaciones mide justo lo que mide el total. El orden y
+ * los tintes los decide quien llama (`motor/apilado` y la pantalla): aquí solo se dibuja.
+ *
+ * ⭐ Cuerpo (regla 9d) como VELO, no como degradado del relleno: un velo del color del fondo que se
+ * desvanece de la base a la punta. Sobre un solo tramo da exactamente el degradado de antes
+ * (tenue abajo, pleno arriba); sobre varios, oscurece la columna entera como una pieza y los
+ * tintes siguen distinguiéndose en la punta, que es donde se leen. Un degradado por tramo (se
+ * probó en la maqueta) emborronaba la diferencia entre tintes.
+ *
+ * ⭐ Alto REAL, no escala final. Antes la columna medía el carril entero y se dejaba escalada a
+ * `valor`: el remate redondo quedaba aplastado (5 pt de ancho por 5·valor de alto) y una
+ * separación de 2 pt habría medido 2·valor. Ahora la columna mide lo que vale y la animación va
+ * de 0 a 1, con la misma compensación anclada al suelo. Si el valor cambia (recarga con sesiones
+ * nuevas), vuelve a crecer desde el suelo: es un dato nuevo, y verlo llegar es la lectura.
  */
 export function Columna({
-  valor,
+  tramos,
   alto,
-  color = tema.color.marca,
   fondo = tema.color.linea,
   retardo = 0,
-  degradado,
   ancho = '100%',
   radio = 3,
   opacidad = 1,
+  cuerpo = 0.5,
 }: {
-  valor: number;
+  /** Tramos de abajo arriba. Se recortan para que la suma no pase de 1. Vacío = día sin nada. */
+  tramos: readonly TramoColumna[];
   /** Altura del carril, en puntos. Hace falta para compensar el escalado desde el centro. */
   alto: number;
-  color?: string;
+  /** Color del trazo de un día vacío. */
   fondo?: string;
   retardo?: number;
-  /**
-   * Degradado vertical del relleno, `[abajo, arriba]`. Manda sobre `color`.
-   *
-   * ⭐ Rediseño del 15 sep (regla 9d): una columna plana de un solo color se lee como un bloque;
-   * de tenue en la base a pleno en la punta se lee como una barra con cuerpo, y la punta, que es
-   * donde está el dato, es lo que más brilla. Mismo mecanismo que el brillo del podio.
-   */
-  degradado?: readonly [string, string];
   /** Ancho dentro del carril. Al 62 % la columna tiene cuerpo sin parecer un botón. */
   ancho?: DimensionValue;
   /** Radio del remate. Con el 62 % de ancho, 5 redondea la punta sin hacerla una píldora. */
   radio?: number;
   /** Opacidad. Los días pasados van a 0,7 para que el de hoy destaque sin otro color. */
   opacidad?: number;
+  /** Cuánto oscurece el velo en la base (0 = plana). 0,5 es el degradado del rediseño. */
+  cuerpo?: number;
 }) {
-  const destino = Math.max(0.02, Math.min(1, valor));
+  const conPuntos = tramos.filter((tr) => tr.valor > 0);
+  const total = Math.min(1, conPuntos.reduce((a, tr) => a + tr.valor, 0));
   const reducir = useReducirMovimiento();
-  const v = useRef(new Animated.Value(reducir ? destino : 0)).current;
+  const v = useRef(new Animated.Value(reducir ? 1 : 0)).current;
 
   useEffect(() => {
     if (reducir) {
-      v.setValue(destino);
+      v.setValue(1);
       return;
     }
+    v.setValue(0);
     Animated.timing(v, {
-      toValue: destino,
+      toValue: 1,
       duration: MS.crece,
       delay: retardo,
       easing: CURVA.sale,
       useNativeDriver: true,
     }).start();
-  }, [v, destino, retardo, reducir]);
+  }, [v, total, retardo, reducir]);
 
-  const vacia = valor <= 0;
+  // Una columna vacía es un trazo del color de fondo: un día sin actividad es información.
+  if (total <= 0) {
+    return <View style={[s.vacia, { width: ancho, backgroundColor: fondo }]} />;
+  }
+
+  const alturaReal = Math.max(SEPARACION, alto * total);
   return (
     <Animated.View
       style={[
         s.columna,
-        // El degradado compone el relleno entero, así que al escalar viaja con la columna. Una
-        // columna vacía es un trazo del color de fondo: un día sin actividad es información.
-        vacia || degradado === undefined
-          ? { backgroundColor: vacia ? fondo : color }
-          : {
-              experimental_backgroundImage: `linear-gradient(to top, ${degradado[0]} 0%, ${degradado[1]} 100%)`,
-            },
         {
-          height: alto,
+          height: alturaReal,
           width: ancho,
           borderRadius: radio,
-          opacity: vacia ? 1 : opacidad,
+          opacity: opacidad,
           transform: [
             // ⚠️ Translate PRIMERO en la lista (capa exterior). Con el orden inverso la
             // compensación quedaba dentro del escalado y la base de la columna flotaba durante
             // la animación, aterrizando en el suelo solo al final. Mismo arreglo que en `Barra`.
-            // Anclada al suelo: `t = (alto/2)·(1-v)` deja el borde inferior quieto.
+            // Anclada al suelo: `t = (h/2)·(1-v)` deja el borde inferior quieto.
             {
               translateY: v.interpolate({
                 inputRange: [0, 1],
-                outputRange: [alto / 2, 0],
+                outputRange: [alturaReal / 2, 0],
               }),
             },
             { scaleY: v },
           ],
         },
       ]}
-    />
+    >
+      {conPuntos.map((tr, i) => (
+        // `flexBasis: 0` para que el reparto sea proporcional a los valores y nada más. El alto
+        // del contenedor está definido, así que Yoga usa la base (CalculateLayout.cpp l.101).
+        <View key={i} style={{ flexGrow: tr.valor, flexBasis: 0, backgroundColor: tr.color }} />
+      ))}
+      {cuerpo > 0 && (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              experimental_backgroundImage: `linear-gradient(to top, rgba(${FONDO_RGB},${cuerpo}) 0%, rgba(${FONDO_RGB},0) 100%)`,
+            },
+          ]}
+        />
+      )}
+    </Animated.View>
   );
 }
 
@@ -225,6 +260,7 @@ const s = StyleSheet.create({
   pista: { overflow: 'hidden', width: '100%' as DimensionValue },
   // Ancho completo: la proporción la hace el `scaleX`, no el `width`.
   relleno: { width: '100%' as DimensionValue },
-  // Ancho y radio los pone cada uso: el gráfico de la semana al 62 %, el resto a todo el carril.
-  columna: {},
+  // Los tramos se apilan de abajo arriba; el recorte redondea solo el remate de arriba y la base.
+  columna: { flexDirection: 'column-reverse', gap: SEPARACION, overflow: 'hidden' },
+  vacia: { height: SEPARACION, borderRadius: SEPARACION / 2 },
 });

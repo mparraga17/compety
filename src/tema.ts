@@ -116,6 +116,8 @@ import type { FontVariant } from 'react-native';
 
 /** Blanco menta de la paleta, en rgb. El texto tenue sale de aqui con alpha. */
 const TINTA = '230,236,233';
+/** Fondo, en rgb. Para velos que oscurecen hacia el fondo (el cuerpo de las columnas). */
+export const FONDO_RGB = '20,21,26';
 /** Periwinkle de marca, en rgb. Los tintes de marca (fondos de chip, avatar propio) salen de aqui. */
 export const MARCA_RGB = '198,203,240';
 /** Coral, en rgb. */

@@ -21,6 +21,7 @@ import { Pulsable } from '../componentes/Pulsable';
 import { SinDatos } from '../componentes/SinDatos';
 import { escalonDe } from '../movimiento';
 import type { ClaveCiencia } from '../motor/ciencia';
+import { ordenDeportes, tramosDeDia } from '../motor/apilado';
 import { PUNTOS_MAX, PUNTOS_MEDIA, PUNTOS_POR_SIGMA, zDe } from '../motor/base';
 import { nombreDeTipo } from '../motor/actividades';
 import { HORIZONTES, enVentana, rankeaVentana, type SesionPuntuada } from '../motor/ranking';
@@ -104,8 +105,22 @@ const ALTO_GRAFICO = 120;
  */
 const BANDA = { min: PUNTOS_MEDIA - PUNTOS_POR_SIGMA, max: PUNTOS_MEDIA + PUNTOS_POR_SIGMA };
 
-/** Degradado de las columnas: tenue en la base, pleno en la punta, que es donde está el dato. */
-const DEGRADADO_COLUMNA = [`rgba(${MARCA_RGB},0.5)`, `rgb(${MARCA_RGB})`] as const;
+/**
+ * ⭐ Tintes de los deportes en el gráfico (16 sep, petición del usuario): un día con varios
+ * deportes se apila, y cada deporte lleva un tinte distinto DENTRO de la paleta.
+ *
+ * Son cuatro opacidades del periwinkle de marca, no cuatro colores: la regla 9 del tema prohíbe la
+ * paleta multicolor y cualquier acento nuevo, y los otros colores que hay significan otra cosa
+ * (los metales, el puesto; el coral, "por debajo"). Se vio en la maqueta con tres variantes: los
+ * tintes planos se distinguen y siguen siendo una sola familia; con oro, plata y bronce el gráfico
+ * parecía un podio. El deporte con más puntos de la semana va pleno y de base; del quinto en
+ * adelante repiten el último tinte, que a esas alturas ya no se distingue de todos modos.
+ *
+ * 0,25 como suelo: por debajo, con brillo automático, el tramo se confunde con la banda (0,07).
+ */
+const TINTES = [1, 0.64, 0.4, 0.25] as const;
+const tinteDeporte = (indice: number): string =>
+  `rgba(${MARCA_RGB},${TINTES[Math.min(indice, TINTES.length - 1)]})`;
 
 const INICIALES_ES = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const INICIALES_EN = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -196,6 +211,8 @@ export function Hoy({ resultado, cargando, onRecargar, perfil, onPerfil }: Props
   }
 
   const barras = barrasPorDia(dentro);
+  // Deportes de la semana por puntos: fija la posición y el tinte de cada uno en todas las columnas.
+  const orden = ordenDeportes(dentro);
   // Techo real: 100 puntos como mínimo, más si algún día suma más de una sesión.
   const topeBarra = Math.max(PUNTOS_MAX, ...barras.map((b) => b.puntos));
   // La banda solo se pinta cuando la base es fiable: sin ella todo puntúa 50 y no diría nada.
@@ -287,46 +304,57 @@ export function Hoy({ resultado, cargando, onRecargar, perfil, onPerfil }: Props
                   ]}
                 />
               )}
-              {barras.map((b) => (
-                // Al tocar un día se abre su desglose, como en la maqueta. Los días vacíos no se
-                // pueden tocar: no hay nada que abrir.
-                <Pulsable
-                  key={b.dia}
-                  fila
-                  style={s.columna}
-                  disabled={b.sesiones.length === 0}
-                  onPress={() => setDiaAbierto(b.dia)}
-                  accessibilityRole="button"
-                  // ⚠️ El nombre COMPLETO del día, no la inicial: VoiceOver leería "ele" con "L".
-                  accessibilityLabel={`${(idioma === 'es' ? DIAS_ES : DIAS_EN)[b.dia]}, ${b.puntos} ${t.puntos}`}
-                >
-                  {/*
-                    ⭐ Las columnas CRECEN de izquierda a derecha, un día detrás de otro.
+              {barras.map((b) => {
+                // Un tramo por deporte del día, en el orden de la semana y con su tinte.
+                const tramos = tramosDeDia(b.sesiones, orden);
+                const desglose =
+                  tramos.length > 1
+                    ? `: ${tramos.map((tr) => `${nombreDeTipo(tr.tipo, idioma)} ${tr.puntos}`).join(', ')}`
+                    : '';
+                return (
+                  // Al tocar un día se abre su desglose, como en la maqueta. Los días vacíos no se
+                  // pueden tocar: no hay nada que abrir.
+                  <Pulsable
+                    key={b.dia}
+                    fila
+                    style={s.columna}
+                    disabled={b.sesiones.length === 0}
+                    onPress={() => setDiaAbierto(b.dia)}
+                    accessibilityRole="button"
+                    // ⚠️ El nombre COMPLETO del día, no la inicial: VoiceOver leería "ele" con "L".
+                    // Y con varios deportes, el desglose: es lo que ven los tintes.
+                    accessibilityLabel={`${(idioma === 'es' ? DIAS_ES : DIAS_EN)[b.dia]}, ${b.puntos} ${t.puntos}${desglose}`}
+                  >
+                    {/*
+                      ⭐ Las columnas CRECEN de izquierda a derecha, un día detrás de otro.
 
-                    La cascada dice algo real: el gráfico es la semana en orden, así que llegar en
-                    ese orden es contar el recorrido en vez de plantar el resultado. Y con 40 ms
-                    por día la semana entera está puesta en 240 ms, dentro del presupuesto de una
-                    sola animación.
+                      La cascada dice algo real: el gráfico es la semana en orden, así que llegar en
+                      ese orden es contar el recorrido en vez de plantar el resultado. Y con 40 ms
+                      por día la semana entera está puesta en 240 ms, dentro del presupuesto de una
+                      sola animación.
 
-                    ⚠️ La altura va en PUNTOS y no en porcentaje, porque `Columna` usa `scaleY` (que
-                    corre en GPU) y necesita saber cuánto mide el carril para anclarse al suelo.
+                      ⚠️ La altura va en PUNTOS y no en porcentaje, porque `Columna` usa `scaleY` (que
+                      corre en GPU) y necesita saber cuánto mide el carril para anclarse al suelo.
 
-                    Con cuerpo (rediseño del 15 sep): al 62 % del hueco, remate redondo, degradado
-                    de la base a la punta, y los días pasados a 0,7 para que hoy destaque sin otro
-                    color.
-                  */}
-                  <Columna
-                    valor={b.puntos / topeBarra}
-                    alto={ALTO_GRAFICO}
-                    fondo={tema.color.linea}
-                    retardo={escalonDe(b.dia)}
-                    degradado={DEGRADADO_COLUMNA}
-                    ancho="62%"
-                    radio={5}
-                    opacidad={b.dia === hoyIndice ? 1 : 0.7}
-                  />
-                </Pulsable>
-              ))}
+                      Con cuerpo (rediseño del 15 sep): al 62 % del hueco, remate redondo, velo de
+                      la base a la punta, y los días pasados a 0,7 para que hoy destaque sin otro
+                      color. Y apilada por deporte (16 sep): cada tramo con su tinte de la marca.
+                    */}
+                    <Columna
+                      tramos={tramos.map((tr) => ({
+                        valor: tr.puntos / topeBarra,
+                        color: tinteDeporte(orden.indexOf(tr.tipo)),
+                      }))}
+                      alto={ALTO_GRAFICO}
+                      fondo={tema.color.linea}
+                      retardo={escalonDe(b.dia)}
+                      ancho="62%"
+                      radio={5}
+                      opacidad={b.dia === hoyIndice ? 1 : 0.7}
+                    />
+                  </Pulsable>
+                );
+              })}
             </View>
             {conBanda && (
               <Text
@@ -345,7 +373,19 @@ export function Hoy({ resultado, cargando, onRecargar, perfil, onPerfil }: Props
             </View>
           </View>
 
-          <Text style={s.leyenda}>{deportes.map((d) => nombreDeTipo(d, idioma)).join(' · ')}</Text>
+          {/*
+            La leyenda: los deportes de la semana en el orden del apilado, cada uno con su tinte
+            delante. Es lo que conecta el punto con el tramo; sin ella los tintes serían decoración.
+            Oculta a VoiceOver: el desglose ya va en la etiqueta de cada columna.
+          */}
+          <View style={s.leyenda} accessible={false} accessibilityElementsHidden>
+            {orden.map((tipo, i) => (
+              <View key={tipo ?? '·'} style={s.leyendaItem}>
+                <View style={[s.leyendaPunto, { backgroundColor: tinteDeporte(i) }]} />
+                <Text style={s.leyendaTexto}>{nombreDeTipo(tipo, idioma)}</Text>
+              </View>
+            ))}
+          </View>
 
           {/*
             Últimas sesiones, un resumen corto. La lista completa vive en su pestaña.
@@ -475,7 +515,11 @@ const s = StyleSheet.create({
   iniciales: { flexDirection: 'row', gap: 6, marginTop: 6 },
   inicial: { flex: 1, textAlign: 'center', fontSize: 11, color: tema.color.textoTenue },
   inicialHoy: { color: tema.color.marca, fontWeight: '600' },
-  leyenda: { ...tema.tipo.micro, color: tema.color.textoTenue, marginTop: tema.espacio.s },
+  // La leyenda de deportes: punto de tinte + nombre, en fila y saltando de línea si hace falta.
+  leyenda: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: tema.espacio.s },
+  leyendaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  leyendaPunto: { width: 7, height: 7, borderRadius: 3.5 },
+  leyendaTexto: { ...tema.tipo.micro, color: tema.color.textoTenue },
 
   hojaFila: { flexDirection: 'row', alignItems: 'center', paddingVertical: tema.espacio.s },
   hojaIcono: { fontSize: 20, width: 30 },

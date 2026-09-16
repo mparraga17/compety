@@ -204,6 +204,9 @@ export function ListaEntrenos({
       <FlatList
         data={entrenos ?? []}
         keyExtractor={(e) => e.id}
+        // Por si algún día la hoja de comentarios pasa a ser hija de la lista: ver el pager de
+        // Ligas para el bug del doble toque en Enviar que causa el valor por defecto (`never`).
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[s.contenido, vacioAhora && cabecera === undefined && s.contenidoVacio]}
         // `pegado` siempre: en Competi la lista va bajo la cabecera fija, y en la ficha de una
         // persona va dentro de una hoja. En ninguno de los dos casos hay isla dinámica encima.

@@ -409,6 +409,26 @@ function Paginas({
       showsHorizontalScrollIndicator={false}
       bounces={false}
       scrollEventThrottle={16}
+      /*
+        ⛔⛔ BUG DEL DOBLE TOQUE EN "ENVIAR" (15 sep). En la hoja de comentarios del feed, con el
+        teclado abierto, el primer toque en Enviar solo cerraba el teclado y hacía falta un
+        segundo toque para enviar. La hoja tenía su `FlatList` con `keyboardShouldPersistTaps`
+        bien puesto y el botón fuera de ella, así que el culpable no estaba en la hoja.
+
+        Estaba AQUÍ. El sistema de responders de React Native recorre el árbol de REACT, no el
+        nativo: aunque la hoja es un `Modal` (otra ventana nativa), sus hijos siguen siendo
+        descendientes de este pager en el árbol de componentes. Y `ScrollView` implementa
+        `onStartShouldSetResponderCapture` así (leído en `ScrollView.js` de la 0.86): si hay un
+        `TextInput` con foco, `keyboardShouldPersistTaps` es `never` (el valor por defecto) y el
+        toque no cae en el propio TextInput, el scroll CAPTURA el toque y al soltar hace
+        `blurTextInput`. El botón nunca recibía el primer toque. La segunda vez ya no había foco
+        y el toque llegaba.
+
+        Con `handled`, un toque sobre algo que lo maneja (un botón) pasa, y un toque en el vacío
+        sigue cerrando el teclado. Es lo mismo que ya se aplicó en Entrar y NuevaLiga por el
+        mismo síntoma; aquí costó más verlo porque el ancestro estaba a dos pantallas.
+      */
+      keyboardShouldPersistTaps="handled"
       onLayout={(ev) => setAlto(ev.nativeEvent.layout.height)}
       onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
         useNativeDriver: true,

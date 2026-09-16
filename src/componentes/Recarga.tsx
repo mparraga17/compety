@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -27,10 +28,29 @@ import { tema } from '../tema';
  * ⭐ Desde el 15 sep el offset sale de `useSafeAreaInsets().top` (antes una constante de 56 que
  * fallaba en más de un iPhone), y al soltar el gesto hay un toque háptico medio: es el momento
  * en que el sistema toma el relevo del dedo, y Apple lo marca así en sus propias apps.
+ *
+ * ⛔⛔ SEGUNDO FALLO ARREGLADO AQUÍ (16 sep): la rueda solo gira si el USUARIO tiró.
+ *
+ * Síntoma: al abrir la app y pasar de Competi a Hoy, *"se sube y se baja y se carga ahí en medio
+ * una cosa rara"*. Y al abrir la ficha de un amigo, la cabecera bajaba y volvía a subir sola.
+ *
+ * Causa, leída en el nativo de RN 0.86 (`RCTPullToRefreshViewComponentView.mm`): cuando la prop
+ * `refreshing` pasa a `true` SIN gesto, iOS tiene que enseñar la rueda de algún modo, y lo hace
+ * desplazando el contenido hacia abajo la altura de la rueda (~60 pt) de golpe
+ * (`beginRefreshingProgrammatically`: `setContentOffset` sin animar); al pasar a `false`,
+ * `endRefreshing` lo devuelve arriba con animación. Y `layoutSubviews` lo repite en cada pasada de
+ * layout mientras la prop siga en `true`. Todas las pantallas pasaban aquí su indicador GENERAL de
+ * carga, así que la carga inicial (o la de fondo) movía la página sin que nadie hubiera tirado.
+ *
+ * ⇒ `refreshing` es `tirado && cargando`: se enciende en `onRefresh`, que solo dispara el gesto, y
+ * se apaga cuando esa carga termina. En un tirón real la rueda ya está girando por el gesto, así
+ * que el nativo no desplaza nada (`if (!isRefreshing)`). Las cargas que no vienen del dedo las
+ * señala cada pantalla a su manera (su `ActivityIndicator`), como debe ser: la rueda es la
+ * respuesta a un gesto, no un estado.
  */
 
 type Props = {
-  /** true mientras se está cargando. Es lo que mantiene la rueda girando. */
+  /** true mientras se está cargando. Mantiene la rueda girando SI el usuario tiró. */
   cargando: boolean;
   onRecargar: () => void;
   /**
@@ -45,10 +65,21 @@ type Props = {
 
 export function Recarga({ cargando, onRecargar, pegado = false }: Props) {
   const insets = useSafeAreaInsets();
+  // Si el usuario tiró. Se apaga cuando la carga que siguió al tirón termina (true → false), no
+  // en cualquier instante sin carga: así un `onRecargar` que tarde un tick en encender `cargando`
+  // no pierde la rueda.
+  const [tirado, setTirado] = useState(false);
+  const cargaba = useRef(cargando);
+  useEffect(() => {
+    if (cargaba.current && !cargando) setTirado(false);
+    cargaba.current = cargando;
+  }, [cargando]);
+
   return (
     <RefreshControl
-      refreshing={cargando}
+      refreshing={tirado && cargando}
       onRefresh={() => {
+        setTirado(true);
         hapticaMedia();
         onRecargar();
       }}

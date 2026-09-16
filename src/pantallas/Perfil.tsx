@@ -10,8 +10,10 @@ import {
   View,
 } from 'react-native';
 
+import { Avatar } from '../componentes/Avatar';
 import { Idioma } from '../componentes/Idioma';
 import { Pulsable } from '../componentes/Pulsable';
+import { Simbolo } from '../componentes/Simbolo';
 import { elegirUsuario, FORMATO_USUARIO } from '../datos/amigos';
 import { borrarCuenta, guardarNombre, salir, type Cuenta } from '../datos/cuenta';
 import { paginaPrivacidad, paginaTerminos } from '../datos/enlaces';
@@ -104,10 +106,14 @@ export function Perfil({ cuenta, onCambio, onFuera, onAmigos, onIdioma }: Props)
       keyboardDismissMode="interactive"
     >
       <View style={s.cabecera}>
+        {/* El avatar compartido, en grande: el mismo que en la cabecera de cada pestaña. */}
         <View style={s.avatarGrande}>
-          <Text style={s.avatarGrandeTexto}>
-            {(cuenta.nombre ?? '?').slice(0, 1).toUpperCase()}
-          </Text>
+          <Avatar
+            nombre={cuenta.nombre ?? cuenta.usuario ?? '?'}
+            inicial={(cuenta.nombre ?? cuenta.usuario ?? '?').slice(0, 1).toUpperCase()}
+            esYo
+            tamano={56}
+          />
         </View>
         <View style={s.cabeceraTexto}>
           <Text style={s.titulo}>{cuenta.nombre ?? t.tuPerfil}</Text>
@@ -119,7 +125,8 @@ export function Perfil({ cuenta, onCambio, onFuera, onAmigos, onIdioma }: Props)
           dejaría ver el fondo por los lados y se leería como un fallo de dibujo. */}
       <Pulsable fila style={s.opcion} accessibilityRole="button" onPress={onAmigos}>
         <Text style={s.opcionTexto}>{t.amigos}</Text>
-        <Text style={s.opcionFlecha}>›</Text>
+        {/* El chevron del sistema, el de las filas de Ajustes de iOS. */}
+        <Simbolo nombre="chevron.right" tamano={14} color={tema.color.textoTenue} peso="semibold" respaldo="›" />
       </Pulsable>
 
       {/* ── Nombre visible ─────────────────────────────────────────────────── */}
@@ -247,16 +254,7 @@ const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: tema.color.fondo },
   contenido: { padding: tema.espacio.l, paddingBottom: tema.espacio.xl * 2 },
   cabecera: { flexDirection: 'row', alignItems: 'center', marginBottom: tema.espacio.l },
-  avatarGrande: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(198,203,240,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: tema.espacio.m,
-  },
-  avatarGrandeTexto: { fontSize: 24, fontWeight: '600', color: tema.color.marca },
+  avatarGrande: { marginRight: tema.espacio.m },
   cabeceraTexto: { flex: 1 },
   // ⭐ Título de PANTALLA, 22px: tu nombre es el encabezado de Perfil y no hay cifra que
   // justifique la etiqueta de 15px. Misma regla que en Sesiones y las pantallas de entrada.
@@ -280,14 +278,17 @@ const s = StyleSheet.create({
   campoFlex: { flex: 1 },
   conArroba: { flexDirection: 'row', alignItems: 'center' },
   arroba: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, marginRight: tema.espacio.xs },
+  // Filas de opción con separador, como las de Ajustes de iOS: eran las únicas filas de la app
+  // sin línea (rediseño del 15 sep).
   opcion: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: tema.tactil,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tema.color.linea,
   },
   opcionTexto: { ...tema.tipo.cuerpo, color: tema.color.texto },
-  opcionFlecha: { ...tema.tipo.titulo, color: tema.color.textoSuave },
   opcionPeligro: { ...tema.tipo.cuerpo, color: tema.color.bajo },
   boton: {
     backgroundColor: tema.color.marca,

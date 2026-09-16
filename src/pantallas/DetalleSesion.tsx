@@ -190,18 +190,20 @@ const s = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(230,236,233,0.18)',
+    backgroundColor: tema.color.tirador,
     alignSelf: 'center',
     marginBottom: tema.espacio.l,
   },
   cabecera: { flexDirection: 'row', alignItems: 'flex-start', gap: tema.espacio.s },
   icono: { fontSize: 26 },
   cabeceraTexto: { flex: 1 },
-  titulo: { ...tema.tipo.titulo, fontSize: 24, color: tema.color.texto },
+  // Misma anatomía que `Hoja` (rediseño del 15 sep): título de 22 con su tracking, no un 24
+  // suelto; la cifra con el token de valor de métrica, no un 34/300 propio; la unidad a 11.
+  titulo: { ...tema.tipo.tituloPantalla, color: tema.color.texto },
   sub: { ...tema.tipo.detalle, color: tema.color.textoSuave, marginTop: 2 },
   cifra: { alignItems: 'flex-end' },
-  puntos: { fontSize: 34, fontWeight: '300', color: tema.color.texto, letterSpacing: -1 },
-  unidad: { fontSize: 10, color: tema.color.textoSuave },
+  puntos: { ...tema.tipo.valorMetrica, fontSize: 32, color: tema.color.texto },
+  unidad: { ...tema.tipo.micro, color: tema.color.textoSuave },
 
   seccion: {
     ...tema.tipo.seccion,

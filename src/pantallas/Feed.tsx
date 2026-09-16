@@ -12,8 +12,13 @@ import {
 } from 'react-native';
 
 import { Aparece } from '../componentes/Aparece';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { Avatar } from '../componentes/Avatar';
+import { huecoBarra } from '../componentes/Pestanas';
 import { Pulsable } from '../componentes/Pulsable';
+import { Simbolo } from '../componentes/Simbolo';
+import { hapticaLigera } from '../componentes/haptica';
 import { Recarga } from '../componentes/Recarga';
 import { useAlturaTeclado } from '../componentes/teclado';
 import { mensajeDe } from '../datos/errores';
@@ -115,6 +120,9 @@ export function ListaEntrenos({
 }: PropsLista) {
   const idioma = idiomaActual();
   const t = textos(idioma);
+  // El hueco de la barra flotante de pestañas: en Competi el final del feed pasa por debajo del
+  // cristal. En la ficha de una persona (una hoja) sobra un poco de aire abajo, que no molesta.
+  const insets = useSafeAreaInsets();
   const [entrenos, setEntrenos] = useState<readonly Entreno[] | null>(null);
   const [cargando, setCargando] = useState(false);
   const [masCargando, setMasCargando] = useState(false);
@@ -168,6 +176,9 @@ export function ListaEntrenos({
 
   const tocarEmoji = async (e: Entreno, emoji: Emoji) => {
     const optimista = alternaReaccion(e, emoji);
+    // Toque ligero en el MISMO instante que la reacción aparece (actualización optimista), no
+    // cuando el servidor contesta: la háptica acompaña al gesto, no a la red.
+    hapticaLigera();
     reemplaza(optimista);
     if (abierto?.id === e.id) setAbierto(optimista);
     try {
@@ -207,7 +218,11 @@ export function ListaEntrenos({
         // Por si algún día la hoja de comentarios pasa a ser hija de la lista: ver el pager de
         // Ligas para el bug del doble toque en Enviar que causa el valor por defecto (`never`).
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[s.contenido, vacioAhora && cabecera === undefined && s.contenidoVacio]}
+        contentContainerStyle={[
+          s.contenido,
+          { paddingBottom: huecoBarra(insets.bottom) },
+          vacioAhora && cabecera === undefined && s.contenidoVacio,
+        ]}
         // `pegado` siempre: en Competi la lista va bajo la cabecera fija, y en la ficha de una
         // persona va dentro de una hoja. En ninguno de los dos casos hay isla dinámica encima.
         refreshControl={<Recarga cargando={cargando} onRecargar={() => void cargar()} pegado />}
@@ -355,7 +370,13 @@ function Tarjeta({
       )}
 
       <View style={s.acciones}>
-        {EMOJIS.map((emoji) => {
+        {/*
+          ⭐ Solo las reacciones que EXISTEN, más una píldora para añadir (rediseño del 15 sep).
+          Antes cada tarjeta repetía la fila entera de emojis vacíos, y con diez tarjetas
+          seguidas esa fila idéntica era lo que más plana hacía ver la lista. Tocar una reacción
+          existente la alterna; la píldora de añadir abre la hoja, donde vive la fila completa.
+        */}
+        {EMOJIS.filter((emoji) => (e.reacciones[emoji] ?? 0) > 0).map((emoji) => {
           const n = e.reacciones[emoji] ?? 0;
           const mia = e.miReaccion === emoji;
           return (
@@ -369,10 +390,20 @@ function Tarjeta({
               accessibilityLabel={`${emoji} ${n}`}
             >
               <Text style={s.emoji}>{emoji}</Text>
-              {n > 0 && <Text style={[s.cuenta, mia && s.cuentaMia]}>{n}</Text>}
+              <Text style={[s.cuenta, mia && s.cuentaMia]}>{n}</Text>
             </Pulsable>
           );
         })}
+        <Pulsable
+          style={s.reaccion}
+          onPress={onComentarios}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={t.feedReaccionar}
+        >
+          <Simbolo nombre="face.smiling" tamano={17} color={tema.color.textoSuave} respaldo="☺" />
+          <Simbolo nombre="plus" tamano={10} color={tema.color.textoSuave} peso="bold" respaldo="+" />
+        </Pulsable>
         <View style={s.hueco} />
         <Pulsable
           style={s.comentarios}
@@ -610,7 +641,8 @@ function HojaComentarios({
 
 const s = StyleSheet.create({
   fondo: { flex: 1 },
-  contenido: { paddingBottom: tema.espacio.xl * 2 },
+  // El hueco de abajo lo pone `huecoBarra` en el render, con el inset real.
+  contenido: {},
   contenidoVacio: { flexGrow: 1, justifyContent: 'center' },
   rueda: { marginTop: tema.espacio.xl },
   error: {
@@ -642,16 +674,18 @@ const s = StyleSheet.create({
 
   acciones: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
   accionesHoja: { paddingHorizontal: tema.espacio.l, marginTop: tema.espacio.s },
+  // Cápsula (radio = alto/2) con el fondo sutil: se ve que es tocable sin necesitar borde.
   reaccion: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     minHeight: 34,
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     borderRadius: 17,
+    backgroundColor: tema.color.superficieSutil,
   },
-  // La tuya se marca con relleno, no con borde: la regla de la v2.
-  reaccionMia: { backgroundColor: 'rgba(198,203,240,0.16)' },
+  // La tuya se marca con el tinte de marca, no con borde: la regla de la v2.
+  reaccionMia: { backgroundColor: tema.color.marcaTenue },
   emoji: { fontSize: 16, lineHeight: 20 },
   cuenta: { ...tema.tipo.detalle, color: tema.color.textoSuave, ...tema.cifras },
   cuentaMia: { color: tema.color.marca, fontWeight: '600' },
@@ -674,20 +708,21 @@ const s = StyleSheet.create({
     minHeight: tema.tactil,
     justifyContent: 'center',
     paddingHorizontal: tema.espacio.l,
-    borderRadius: tema.radio.m,
+    borderRadius: tema.tactil / 2,
     marginTop: tema.espacio.m,
   },
   botonTexto: { ...tema.tipo.cuerpo, color: tema.color.fondo, fontWeight: '600', textAlign: 'center' },
 
-  // La hoja de comentarios. Misma anatomía que `Hoja`: agarre, título de 22, fondo de la app.
+  // La hoja de comentarios. Misma anatomía que `Hoja`: agarre (mismo margen), título de 22,
+  // fondo de la app. Era una de las tres anatomías de hoja distintas de la app (15 sep).
   hoja: { flex: 1, backgroundColor: tema.color.fondo, paddingTop: tema.espacio.m },
   agarre: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(230,236,233,0.18)',
+    backgroundColor: tema.color.tirador,
     alignSelf: 'center',
-    marginBottom: tema.espacio.m,
+    marginBottom: tema.espacio.l,
   },
   hojaCabecera: {
     flexDirection: 'row',
@@ -695,9 +730,11 @@ const s = StyleSheet.create({
     gap: tema.espacio.m,
     paddingHorizontal: tema.espacio.l,
   },
-  hojaTitulo: { fontSize: 22, fontWeight: '600', color: tema.color.texto, letterSpacing: -0.4 },
+  hojaTitulo: { ...tema.tipo.tituloPantalla, color: tema.color.texto },
   hojaSub: { ...tema.tipo.sub, color: tema.color.textoSuave, marginTop: 2 },
-  cerrar: { ...tema.tipo.cuerpo, color: tema.color.marca, fontWeight: '600', paddingVertical: 4 },
+  // "Cerrar" arriba a la derecha y no al pie como en `Hoja`: aquí el pie es la caja de texto.
+  // En el color suave de `Hoja`, no en marca: no es la acción principal de la hoja.
+  cerrar: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, paddingVertical: 4 },
   quienes: {
     ...tema.tipo.detalle,
     color: tema.color.textoSuave,
@@ -743,7 +780,7 @@ const s = StyleSheet.create({
     minHeight: tema.tactil,
     justifyContent: 'center',
     paddingHorizontal: tema.espacio.m,
-    borderRadius: tema.radio.m,
+    borderRadius: tema.tactil / 2,
   },
   enviarApagado: { opacity: 0.4 },
   enviarTexto: { ...tema.tipo.cuerpo, color: tema.color.fondo, fontWeight: '600' },

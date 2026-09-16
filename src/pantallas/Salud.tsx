@@ -1,6 +1,7 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
-  ScrollView,
+  Animated,
   StyleSheet,
   Text,
   View,
@@ -9,10 +10,17 @@ import { useState } from 'react';
 
 import { Recarga } from '../componentes/Recarga';
 import { Aparece } from '../componentes/Aparece';
+import {
+  BarraCompacta,
+  Cabecera,
+  useScrollCabecera,
+  type PerfilCabecera,
+} from '../componentes/Cabecera';
 import { Ciencia } from '../componentes/Ciencia';
 import { Halo } from '../componentes/Halo';
 import { Ficha } from '../componentes/Ficha';
 import { Medidor } from '../componentes/Medidor';
+import { huecoBarra } from '../componentes/Pestanas';
 import { Pulsable } from '../componentes/Pulsable';
 import type { ClaveCiencia } from '../motor/ciencia';
 import type { Forma } from '../motor/forma';
@@ -50,6 +58,9 @@ type Props = {
   onRecargar: () => void;
   /** Lleva al diagnóstico, que dice qué métricas llegan de verdad de la pulsera. */
   onDiagnostico: () => void;
+  /** Avatar de la cabecera, que abre el perfil. null sin cuenta. */
+  perfil?: PerfilCabecera | null;
+  onPerfil?: () => void;
 };
 
 const FUENTES: readonly ClaveCiencia[] = [
@@ -268,21 +279,35 @@ export function Salud({
   cargando,
   onRecargar,
   onDiagnostico,
+  perfil,
+  onPerfil,
 }: Props) {
   const idioma = idiomaActual();
   const t = textos(idioma);
   const [ficha, setFicha] = useState<ClaveCiencia | null>(null);
+  const insets = useSafeAreaInsets();
+  const { y, onScroll } = useScrollCabecera();
 
   const conDatos = metricas.filter((m) => m.disponible).length;
 
   return (
-    <ScrollView
+    <View style={s.fondo}>
+    <BarraCompacta titulo={t.tabSalud} y={y} />
+    <Animated.ScrollView
       style={s.fondo}
-      contentContainerStyle={s.contenido}
+      contentContainerStyle={[s.contenido, { paddingBottom: huecoBarra(insets.bottom) }]}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       refreshControl={<Recarga cargando={cargando} onRecargar={onRecargar} />}
     >
       <Halo />
-      <Text style={s.titulo}>{t.saludTitulo}</Text>
+      <Cabecera
+        titulo={t.tabSalud}
+        contexto={t.saludContexto}
+        perfil={perfil}
+        onPerfil={onPerfil}
+        etiquetaPerfil={t.abrirPerfil}
+      />
       <Text style={s.sub}>{t.saludSubtitulo}</Text>
 
       {cargando && oms === null && <ActivityIndicator color={tema.color.marca} style={s.espera} />}
@@ -419,23 +444,19 @@ export function Salud({
 
       {/* Ficha de una métrica concreta, al tocarla. */}
       <Ficha clave={ficha} onCerrar={() => setFicha(null)} />
-    </ScrollView>
+    </Animated.ScrollView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: tema.color.fondo },
-  contenido: {
-    paddingHorizontal: tema.espacio.l,
-    paddingTop: tema.seguroArriba + tema.espacio.s,
-    paddingBottom: tema.espacio.xl,
-  },
-  titulo: { ...tema.tipo.titulo, color: tema.color.textoSuave },
+  // El hueco de arriba lo pone la `Cabecera` con el inset real; el de abajo, `huecoBarra`.
+  contenido: { paddingHorizontal: tema.espacio.l },
   sub: { ...tema.tipo.sub, color: tema.color.textoTenue, marginBottom: tema.espacio.m },
 
   hero: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingVertical: tema.espacio.m },
   cifra: { minWidth: 96 },
-  n: { ...tema.tipo.cifraPar, color: tema.color.texto },
   nMedio: {
     fontSize: 46,
     // 200 y no 300: React Native solo acepta múltiplos de 100 y 200 es el que se parece al 250
@@ -445,18 +466,7 @@ const s = StyleSheet.create({
     letterSpacing: -1.5,
     ...tema.cifras,
   },
-  u: { ...tema.tipo.micro, color: tema.color.textoSuave, marginTop: 2, maxWidth: 92 },
   frase: { fontSize: 14, lineHeight: 20, color: tema.color.texto, flex: 1, opacity: 0.9 },
-
-  // Barra de progreso del objetivo. Sin borde, solo relleno.
-  pista: {
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: tema.color.linea,
-    marginTop: 14,
-    overflow: 'hidden',
-  },
-  progreso: { height: '100%', backgroundColor: tema.color.marca, borderRadius: 2 },
 
   datos: {
     flexDirection: 'row',
@@ -503,8 +513,9 @@ const s = StyleSheet.create({
   },
   columnas: { flexDirection: 'row', height: '100%', gap: 1 },
   columnaDia: { flex: 1, height: '100%' },
-  punto: { position: 'absolute', left: 0, right: 0, height: 2, borderRadius: 1 },
-  puntoUltimo: { height: 4, borderRadius: 2 },
+  // 3 pt y no 2: a 2 los puntos de la serie apenas se veían en el iPhone (rediseño del 15 sep).
+  punto: { position: 'absolute', left: 0, right: 0, height: 3, borderRadius: 1.5 },
+  puntoUltimo: { height: 5, borderRadius: 2.5 },
 
   enlaceDiag: { minHeight: tema.tactil, justifyContent: 'center' },
   enlaceDiagTexto: { ...tema.tipo.detalle, color: tema.color.marca },

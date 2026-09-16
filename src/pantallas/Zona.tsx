@@ -274,7 +274,7 @@ const s = StyleSheet.create({
     gap: 8,
     minHeight: tema.tactil,
     borderRadius: tema.radio.m,
-    backgroundColor: 'rgba(198,203,240,0.14)',
+    backgroundColor: tema.color.marcaTenue,
     marginBottom: tema.espacio.l,
   },
   botonUbicacionIcono: { fontSize: 13, color: tema.color.marca },

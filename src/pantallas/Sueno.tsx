@@ -1,24 +1,26 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Recarga } from '../componentes/Recarga';
 import { Aparece } from '../componentes/Aparece';
 import { Barra } from '../componentes/Barra';
+import {
+  BarraCompacta,
+  Cabecera,
+  useScrollCabecera,
+  type PerfilCabecera,
+} from '../componentes/Cabecera';
 import { Ciencia } from '../componentes/Ciencia';
 import { Halo } from '../componentes/Halo';
 import { Medidor } from '../componentes/Medidor';
+import { huecoBarra } from '../componentes/Pestanas';
+import { SinDatos } from '../componentes/SinDatos';
 import { CURVA, MS, escalonDe, useReducirMovimiento } from '../movimiento';
 import type { ClaveCiencia } from '../motor/ciencia';
 import { OBJETIVO_HORAS, type Componente, type Dia, type Sueno as DatosSueno } from '../motor/sueno';
 import { conValores, idiomaActual, textos, type Textos } from '../i18n/textos';
-import { tema } from '../tema';
+import { BAJO_RGB, MARCA_RGB, tema } from '../tema';
 
 /**
  * Nombre visible de cada componente.
@@ -74,6 +76,9 @@ type Props = {
   datos: DatosSueno | null;
   cargando: boolean;
   onRecargar: () => void;
+  /** Avatar de la cabecera, que abre el perfil. null sin cuenta. */
+  perfil?: PerfilCabecera | null;
+  onPerfil?: () => void;
 };
 
 const FUENTES: readonly ClaveCiencia[] = [
@@ -89,7 +94,32 @@ const FUENTES: readonly ClaveCiencia[] = [
 const NOCHES_EN_GRAFICO = 14;
 
 /** Alto del lienzo del gráfico, en puntos. Lo necesita el anclaje del crecimiento. */
-const ALTO_LIENZO = 96;
+const ALTO_LIENZO = 120;
+
+/** Noches mínimas para que la banda de "tu normal" signifique algo. */
+const NOCHES_MINIMAS_BANDA = 5;
+
+/** Degradados de las noches: tenue en la base y pleno en la punta (regla 9d del tema). */
+const DEGRADADO_NOCHE = `linear-gradient(to top, rgba(${MARCA_RGB},0.5) 0%, rgb(${MARCA_RGB}) 100%)`;
+// Noche corta en coral, pero suavizado: el coral pleno satura y una noche corta no es una alarma.
+const DEGRADADO_CORTA = `linear-gradient(to top, rgba(${BAJO_RGB},0.3) 0%, rgba(${BAJO_RGB},0.7) 100%)`;
+
+/** "6 h 40" a partir de horas decimales. Sin `Intl`, como todo lo que pinta el teléfono. */
+function horasTexto(h: number): string {
+  const enteras = Math.floor(h);
+  const minutos = Math.round((h - enteras) * 60);
+  return `${enteras} h ${String(minutos).padStart(2, '0')}`;
+}
+
+/** Media ± una desviación típica de las horas dormidas, para la banda del gráfico. */
+function bandaDeNoches(noches: readonly Dia[]): { min: number; max: number } | null {
+  if (noches.length < NOCHES_MINIMAS_BANDA) return null;
+  const horas = noches.map((n) => n.totalDormido / 60);
+  const media = horas.reduce((a, b) => a + b, 0) / horas.length;
+  const sd = Math.sqrt(horas.reduce((a, b) => a + (b - media) ** 2, 0) / horas.length);
+  if (sd <= 0) return null;
+  return { min: Math.max(0, media - sd), max: media + sd };
+}
 
 /**
  * Ancla una columna del gráfico al suelo mientras crece con `scaleY`.
@@ -156,10 +186,26 @@ function GraficoNoches({ noches, siestas }: { noches: readonly Dia[]; siestas: n
   // Techo con un 8 % de aire, como la maqueta, y nunca por debajo de 9 h para que la línea de
   // las 7 quede dentro del gráfico incluso en una semana de noches cortas.
   const techo = Math.max(9, ...noches.map((n) => n.totalDormido / 60)) * 1.08;
+  // ⭐ Tu normal: media ± una desviación de estas noches, pintada detrás (regla 9d). Es la
+  // referencia propia que el estudio JAMIA echaba en falta, junto a la línea de las 7 h.
+  const banda = bandaDeNoches(noches);
+  const ultima = noches.length - 1;
 
   return (
     <View style={s.grafico}>
       <View style={s.lienzo}>
+        {banda !== null && (
+          <View
+            pointerEvents="none"
+            style={[
+              s.banda,
+              {
+                bottom: `${(banda.min / techo) * 100}%`,
+                height: `${((banda.max - banda.min) / techo) * 100}%`,
+              },
+            ]}
+          />
+        )}
         {/* Línea de las 7 h: la referencia que hace legible el gráfico. Sin ella son barras
             sueltas, que es el pain point nº1 del estudio JAMIA. */}
         <View style={[s.objetivo, { bottom: `${(OBJETIVO_HORAS / techo) * 100}%` }]} />
@@ -182,43 +228,69 @@ function GraficoNoches({ noches, siestas }: { noches: readonly Dia[]; siestas: n
                   ]}
                 />
               )}
+              {/* Con cuerpo (rediseño del 15 sep): degradado de la base a la punta, remate
+                  redondo, y las noches pasadas a 0,7 para que la última destaque sin otro color.
+                  El coral solo cuando la noche fue corta: regla de la v2 del panel. */}
               <View
                 style={[
                   s.barraNoche,
-                  { height: `${Math.max(2, (nocheHoras / techo) * 100)}%` },
-                  // Color solo cuando el dato sale de lo esperado. Regla de la v2 del panel.
-                  horas < OBJETIVO_HORAS && s.barraCorta,
+                  {
+                    height: `${Math.max(2, (nocheHoras / techo) * 100)}%`,
+                    experimental_backgroundImage:
+                      horas < OBJETIVO_HORAS ? DEGRADADO_CORTA : DEGRADADO_NOCHE,
+                    opacity: i === ultima ? 1 : 0.7,
+                  },
                 ]}
               />
             </CreceDelSuelo>
           );
         })}
       </View>
+      {banda !== null && (
+        <Text style={s.bandaEtiqueta} pointerEvents="none">
+          {conValores(t.suenoBanda, { min: horasTexto(banda.min), max: horasTexto(banda.max) })}
+        </Text>
+      )}
       <Text style={s.leyenda}>{conValores(t.suenoLeyendaNoches, { n: siestas })}</Text>
     </View>
   );
 }
 
-export function Sueno({ datos, cargando, onRecargar }: Props) {
+export function Sueno({ datos, cargando, onRecargar, perfil, onPerfil }: Props) {
   const t = textos(idiomaActual());
   const r = datos?.resumen;
+  const insets = useSafeAreaInsets();
+  const { y, onScroll } = useScrollCabecera();
+  // La línea de contexto de la cabecera: la última noche en horas, cuando la hay.
+  const anoche = datos?.ventana[0];
+  const contexto =
+    anoche !== undefined && r !== undefined && r.disponible
+      ? `${t.anoche} · ${horasTexto(anoche.totalDormido / 60)}`
+      : undefined;
 
   return (
-    <ScrollView
+    <View style={s.fondo}>
+    <BarraCompacta titulo={t.tabSueno} y={y} />
+    <Animated.ScrollView
       style={s.fondo}
-      contentContainerStyle={s.contenido}
+      contentContainerStyle={[s.contenido, { paddingBottom: huecoBarra(insets.bottom) }]}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       refreshControl={<Recarga cargando={cargando} onRecargar={onRecargar} />}
     >
       <Halo />
-      <Text style={s.titulo}>{t.suenoTitulo}</Text>
+      <Cabecera
+        titulo={t.tabSueno}
+        contexto={contexto}
+        perfil={perfil}
+        onPerfil={onPerfil}
+        etiquetaPerfil={t.abrirPerfil}
+      />
 
       {cargando && r === undefined && <ActivityIndicator color={tema.color.marca} style={s.espera} />}
 
       {!cargando && (r === undefined || !r.disponible) && (
-        <>
-          <Text style={s.vacioTitulo}>{t.suenoSinDatos}</Text>
-          <Text style={s.sub}>{t.suenoSinDatosTexto}</Text>
-        </>
+        <SinDatos titulo={t.suenoSinDatos} texto={t.suenoSinDatosTexto} />
       )}
 
       {r !== undefined && r.disponible && (
@@ -327,29 +399,35 @@ export function Sueno({ datos, cargando, onRecargar }: Props) {
       )}
 
       <Ciencia ids={FUENTES} />
-    </ScrollView>
+    </Animated.ScrollView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: tema.color.fondo },
-  contenido: {
-    paddingHorizontal: tema.espacio.l,
-    paddingTop: tema.seguroArriba + tema.espacio.s,
-    paddingBottom: tema.espacio.xl,
-  },
-  titulo: { ...tema.tipo.titulo, color: tema.color.textoSuave },
+  // El hueco de arriba lo pone la `Cabecera` con el inset real; el de abajo, `huecoBarra`.
+  contenido: { paddingHorizontal: tema.espacio.l },
   sub: { ...tema.tipo.sub, color: tema.color.textoTenue, marginBottom: tema.espacio.m },
-  vacioTitulo: { ...tema.tipo.cuerpo, color: tema.color.texto, marginBottom: tema.espacio.xs },
-
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingVertical: tema.espacio.m },
-  cifra: { minWidth: 96 },
-  n: { ...tema.tipo.cifraPar, color: tema.color.texto },
-  u: { ...tema.tipo.micro, color: tema.color.textoSuave, marginTop: 2, maxWidth: 88 },
-  frase: { fontSize: 14, lineHeight: 20, color: tema.color.texto, flex: 1, opacity: 0.9 },
 
   grafico: { marginTop: tema.espacio.l },
-  lienzo: { flexDirection: 'row', height: 96, alignItems: 'flex-end', gap: 3 },
+  lienzo: { flexDirection: 'row', height: ALTO_LIENZO, alignItems: 'flex-end', gap: 4 },
+  // La banda de "tu normal": un bloque sutil detrás, sin borde. Regla de la v2.
+  banda: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    backgroundColor: tema.color.superficieSutil,
+    borderRadius: 6,
+  },
+  bandaEtiqueta: {
+    ...tema.tipo.micro,
+    fontSize: 10,
+    color: tema.color.textoTenue,
+    textAlign: 'right',
+    marginTop: 4,
+    ...tema.cifras,
+  },
   // Línea discontinua imitada con opacidad baja: `borderStyle: 'dashed'` se pinta distinto en
   // iOS y Android, y aquí basta una referencia tenue.
   objetivo: {
@@ -360,15 +438,16 @@ const s = StyleSheet.create({
     backgroundColor: `rgba(230,236,233,0.28)`,
   },
   // Altura completa del lienzo: la necesita el anclaje del `scaleY` de `CreceDelSuelo`.
-  columna: { flex: 1, height: '100%', justifyContent: 'flex-end' },
-  barraNoche: { width: '100%', backgroundColor: tema.color.marca, borderRadius: 2 },
-  barraCorta: { backgroundColor: 'rgba(249,64,79,0.55)' },
+  columna: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  // Al 78 % del hueco con remate redondo: cuerpo sin parecer un bloque. El relleno lo pone el
+  // degradado en línea (noche normal o corta).
+  barraNoche: { width: '78%', borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
   // Siesta en gris claro y encima de la noche. ⚠️ En el panel v2 se anotó que el blanco menta
   // se confundía con las barras: aquí va con opacidad baja para que no compita.
   siesta: {
-    width: '100%',
+    width: '78%',
     backgroundColor: `rgba(230,236,233,0.30)`,
-    borderRadius: 1,
+    borderRadius: 2,
     marginBottom: 1.5,
   },
   leyenda: { ...tema.tipo.micro, color: tema.color.textoTenue, marginTop: tema.espacio.s },

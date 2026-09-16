@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
-  ScrollView,
+  Animated,
   StyleSheet,
   Text,
   View,
@@ -9,16 +10,24 @@ import {
 
 import { Recarga } from '../componentes/Recarga';
 import { Aparece } from '../componentes/Aparece';
+import {
+  BarraCompacta,
+  Cabecera,
+  useScrollCabecera,
+  type PerfilCabecera,
+} from '../componentes/Cabecera';
 import { Ciencia } from '../componentes/Ciencia';
 import { Halo } from '../componentes/Halo';
+import { huecoBarra } from '../componentes/Pestanas';
 import { Pulsable } from '../componentes/Pulsable';
+import { SinDatos } from '../componentes/SinDatos';
 import { DetalleSesion } from './DetalleSesion';
 import { iconoDe, nombreDeTipo } from '../motor/actividades';
 import type { ClaveCiencia } from '../motor/ciencia';
 import { HORIZONTES, esValida, rankeaVentana } from '../motor/ranking';
 import type { Resultado, Sesion } from '../motor/sesiones';
 import { conValores, idiomaActual, textos } from '../i18n/textos';
-import { tema } from '../tema';
+import { MARCA_RGB, tema } from '../tema';
 
 /**
  * Lista de sesiones, agrupadas por día.
@@ -48,6 +57,9 @@ type Props = {
   onDeclararEsfuerzo: (idSesion: string, rpe: number) => void;
   /** Corrige el deporte de una sesión y vuelve a calcular. Lo resuelve App.tsx. */
   onCorregirDeporte: (idSesion: string, tipo: string) => void;
+  /** Avatar de la cabecera, que abre el perfil. null sin cuenta. */
+  perfil?: PerfilCabecera | null;
+  onPerfil?: () => void;
 };
 
 /** Agrupa por fecha local, no UTC: la sesion pertenece al dia que esa persona vivio. */
@@ -129,15 +141,25 @@ const DIAS_HISTORIAL = 30;
 
 /** Colores de las cuatro zonas, de suave a máxima. Mismo criterio que la maqueta. */
 const COLOR_ZONA = [
-  'rgba(198,203,240,0.30)',
-  'rgba(198,203,240,0.55)',
-  'rgba(198,203,240,0.80)',
-  '#c6cbf0',
+  `rgba(${MARCA_RGB},0.30)`,
+  `rgba(${MARCA_RGB},0.55)`,
+  `rgba(${MARCA_RGB},0.80)`,
+  tema.color.marca,
 ] as const;
 
-export function Sesiones({ resultado, cargando, onRecargar, onDeclararEsfuerzo, onCorregirDeporte }: Props) {
+export function Sesiones({
+  resultado,
+  cargando,
+  onRecargar,
+  onDeclararEsfuerzo,
+  onCorregirDeporte,
+  perfil,
+  onPerfil,
+}: Props) {
   const idioma = idiomaActual();
   const t = textos(idioma);
+  const insets = useSafeAreaInsets();
+  const { y, onScroll } = useScrollCabecera();
   // Id y no la sesión: así el detalle se refresca solo cuando el motor recalcula tras declarar
   // el esfuerzo, en vez de quedarse con una copia vieja de los puntos.
   const [abierta, setAbierta] = useState<string | null>(null);
@@ -167,9 +189,13 @@ export function Sesiones({ resultado, cargando, onRecargar, onDeclararEsfuerzo, 
   const minutos = Math.round(sesiones.reduce((a, x) => a + x.minutos, 0));
 
   return (
-    <ScrollView
+    <View style={s.fondo}>
+    <BarraCompacta titulo={t.tabSesiones} y={y} />
+    <Animated.ScrollView
       style={s.fondo}
-      contentContainerStyle={s.contenido}
+      contentContainerStyle={[s.contenido, { paddingBottom: huecoBarra(insets.bottom) }]}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       refreshControl={<Recarga cargando={cargando} onRecargar={onRecargar} />}
     >
       {/*
@@ -192,7 +218,13 @@ export function Sesiones({ resultado, cargando, onRecargar, onDeclararEsfuerzo, 
         justo lo que hizo el usuario.
       */}
       <Halo />
-      <Text style={s.titulo}>{t.sesionesTitulo}</Text>
+      <Cabecera
+        titulo={t.tabSesiones}
+        contexto={t.ultimos30Dias}
+        perfil={perfil}
+        onPerfil={onPerfil}
+        etiquetaPerfil={t.abrirPerfil}
+      />
 
       {cargando && sesiones.length === 0 && (
         <ActivityIndicator color={tema.color.marca} style={s.espera} />
@@ -236,10 +268,7 @@ export function Sesiones({ resultado, cargando, onRecargar, onDeclararEsfuerzo, 
       )}
 
       {!cargando && sesiones.length === 0 && (
-        <>
-          <Text style={s.vacioTitulo}>{t.sinSesiones}</Text>
-          <Text style={s.sub}>{t.sinSesionesTexto}</Text>
-        </>
+        <SinDatos titulo={t.sinSesiones} texto={t.sinSesionesTexto} />
       )}
 
       {/*
@@ -429,20 +458,16 @@ export function Sesiones({ resultado, cargando, onRecargar, onDeclararEsfuerzo, 
           setAbierta(null);
         }}
       />
-    </ScrollView>
+    </Animated.ScrollView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: tema.color.fondo },
-  contenido: {
-    paddingHorizontal: tema.espacio.l,
-    paddingTop: tema.seguroArriba + tema.espacio.s,
-    paddingBottom: tema.espacio.xl,
-  },
-  titulo: { ...tema.tipo.titulo, color: tema.color.textoSuave },
+  // El hueco de arriba lo pone la `Cabecera` con el inset real; el de abajo, `huecoBarra`.
+  contenido: { paddingHorizontal: tema.espacio.l },
   sub: { ...tema.tipo.sub, color: tema.color.textoTenue, marginBottom: tema.espacio.m },
-  vacioTitulo: { ...tema.tipo.cuerpo, color: tema.color.texto, marginBottom: tema.espacio.xs },
 
   /* ── Cabecera: mismas medidas que Hoy, para que las pestañas abran igual ─────────────────── */
   hero: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingVertical: tema.espacio.m },
@@ -519,17 +544,22 @@ const s = StyleSheet.create({
   nombre: { ...tema.tipo.cuerpo, color: tema.color.texto },
   apagado: { color: tema.color.textoSuave },
   // Etiquetas pequeñas: dicen por qué una sesión es distinta, sin ocupar una línea entera.
+  // ⚠️ 11 px y no 9: iOS no baja de 11 para texto legible, y a 9 las etiquetas eran lo primero
+  // que se veía "de prototipo" (rediseño del 15 sep). Radio `s` del tema.
   tag: {
-    fontSize: 9,
+    ...tema.tipo.micro,
     fontWeight: '500',
     paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 1,
+    borderRadius: tema.radio.s,
+    overflow: 'hidden',
   },
-  tagFusion: { color: tema.color.marca, backgroundColor: 'rgba(198,203,240,0.14)' },
-  tagAviso: { color: '#f9808a', backgroundColor: 'rgba(249,64,79,0.14)' },
-  // Verde apagado: dice "esta cuenta" sin competir con el periwinkle de marca.
-  tagCuenta: { color: '#9ec9a8', backgroundColor: 'rgba(158,201,168,0.14)' },
+  tagFusion: { color: tema.color.marca, backgroundColor: tema.color.marcaTenue },
+  // Coral suavizado sobre su tinte: el pleno satura en un texto de 11 px.
+  tagAviso: { color: '#f9808a', backgroundColor: tema.color.bajoTenue },
+  // ⭐ "Esta cuenta" en el color del texto sobre el tinte de marca: antes llevaba un verde
+  // fuera de paleta, el único de toda la app. Un solo acento (regla de la casa).
+  tagCuenta: { color: tema.color.texto, backgroundColor: tema.color.marcaTenue },
   detalle: { ...tema.tipo.micro, color: tema.color.textoTenue, marginTop: 2 },
   zonas: {
     flexDirection: 'row',
@@ -542,6 +572,7 @@ const s = StyleSheet.create({
   // 17px y peso 500, como el `.ses .pt` de la maqueta. Estaba a 24 y 600, y con siete filas
   // seguidas esos números dominaban la pantalla entera.
   puntos: { fontSize: 17, fontWeight: '500', color: tema.color.texto, ...tema.cifras },
-  unidad: { fontSize: 9, color: tema.color.textoTenue },
+  // 11 px (el mínimo legible de iOS), no 9.
+  unidad: { ...tema.tipo.micro, color: tema.color.textoTenue },
   espera: { marginVertical: tema.espacio.l },
 });

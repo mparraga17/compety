@@ -9,18 +9,22 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Feed, type PersonaRef } from './Feed';
 import { Recarga } from '../componentes/Recarga';
 import { Aparece } from '../componentes/Aparece';
-import { tonoAvatar } from '../componentes/Avatar';
+import { Avatar } from '../componentes/Avatar';
 import { Barra } from '../componentes/Barra';
 import { Ciencia } from '../componentes/Ciencia';
 import { HALO_PODIO, Halo, haloDePuesto } from '../componentes/Halo';
 import { escalonDe, useEntrada } from '../movimiento';
+import { huecoBarra } from '../componentes/Pestanas';
 import { Pulsable } from '../componentes/Pulsable';
 import { ChipRacha } from '../componentes/Racha';
+import { Segmentado } from '../componentes/Segmentado';
 import { Selector } from '../componentes/Selector';
+import { Simbolo } from '../componentes/Simbolo';
 import { enlaceDeLiga } from '../datos/enlaces';
 import { mensajeDe } from '../datos/errores';
 import {
@@ -34,7 +38,13 @@ import {
 } from '../datos/ligas';
 import { sincroniza } from '../datos/sincroniza';
 import { HAY_SERVIDOR } from '../datos/supabase';
-import { etiquetaPersona, inicialPersona, nombreHorizonte, nombreLiga, ordinal } from '../i18n/ligas';
+import {
+  etiquetaPersona,
+  inicialPersona,
+  nombreHorizonteCorto,
+  nombreLiga,
+  ordinal,
+} from '../i18n/ligas';
 import { conValores, idiomaActual, textos, type Idioma, type Textos } from '../i18n/textos';
 import { nombreDeTipo } from '../motor/actividades';
 import { zDe } from '../motor/base';
@@ -133,11 +143,12 @@ function Cabecera({
   onAmigos: () => void;
   onPerfil: () => void;
   inicial: string;
-  /** La racha semanal, para el chip 🔥. null mientras el motor no ha devuelto sesiones. */
+  /** La racha semanal, para el chip de la llama. null mientras el motor no ha devuelto sesiones. */
   racha?: Racha | null;
 }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={s.cabecera}>
+    <View style={[s.cabecera, { paddingTop: insets.top + tema.espacio.s }]}>
       <Text style={s.marca}>{t.competi}</Text>
       {/*
         ⛔ EL SELECTOR ES/EN YA NO ESTÁ AQUÍ. Se movió a Perfil, a la sección de ajustes.
@@ -171,18 +182,21 @@ function Cabecera({
           accessibilityLabel={t.agregarAmigos}
           onPress={onAmigos}
         >
-          <Text style={s.botonAmigosMas}>+</Text>
+          <Simbolo nombre="plus" tamano={15} color={tema.color.marca} peso="semibold" respaldo="+" />
           <Text style={s.botonAmigosTexto}>{t.amigos}</Text>
         </Pulsable>
-        {/* Escala más marcada: es un objetivo redondo y pequeño, así que 0,97 no se vería. */}
+        {/*
+          El MISMO avatar que la cabecera de las otras cuatro pestañas (rediseño del 15 sep):
+          antes era un círculo propio con la inicial en marca, la cuarta implementación de
+          avatar de la app. Escala más marcada: es un objetivo redondo y pequeño.
+        */}
         <Pulsable
           escala={0.92}
-          style={s.iconoBoton}
           accessibilityRole="button"
           accessibilityLabel={t.tuPerfil}
           onPress={onPerfil}
         >
-          <Text style={s.iconoInicial}>{inicial}</Text>
+          <Avatar nombre={inicial} inicial={inicial} esYo tamano={36} />
         </Pulsable>
       </View>
     </View>
@@ -243,8 +257,6 @@ function Fila({
   // no se pisan: puedes ser segundo y reconocerte igual.
   const metal = metalDe(i + 1);
   const enPodio = i < 3;
-  // Identidad de la persona: mismo nombre, mismo tono. "Eres tú" lo sobreescribe con la marca.
-  const tinte = tonoAvatar(p.nombre);
 
   return (
     <Animated.View style={entrada}>
@@ -255,7 +267,10 @@ function Fila({
     */}
     <Pulsable
       fila
-      style={s.fila}
+      // ⭐ TU fila lleva fondo (rediseño del 15 sep): es el "dónde estoy" de la tabla, y en una
+      // división de treinta la negrita sola no bastaba para encontrarse. Sin borde, con el
+      // bloque sutil del tema, y sangrando 12 pt a los lados para que la píldora abrace la fila.
+      style={[s.fila, esYo && s.filaYo]}
       onPress={onPersona}
       disabled={onPersona === undefined}
       accessibilityRole="button"
@@ -285,22 +300,20 @@ function Fila({
         ⭐ El avatar lleva el tono de la PERSONA y la inicial en ese tono pleno. Tu tinte de marca
         sigue mandando: los estilos `Yo` van después en el array y pisan al tinte de identidad.
       */}
-      <View style={[s.avatar, { backgroundColor: `rgba(${tinte},0.15)` }, esYo && s.avatarYo]}>
-        <Text style={[s.avatarTexto, { color: `rgb(${tinte})` }, esYo && s.avatarTextoYo]}>
-          {inicialPersona(p.nombre, esYo, idioma)}
-        </Text>
-      </View>
+      <Avatar nombre={p.nombre} inicial={inicialPersona(p.nombre, esYo, idioma)} esYo={esYo} />
       <View style={s.filaMedio}>
         <View style={s.nombreFila}>
           <Text style={[s.nombre, esYo && s.negrita]} numberOfLines={1}>
             {etiqueta}
           </Text>
           {/*
-            ⭐ La corona del líder: la ceremonia que faltaba en el podio. Un emoji pequeño junto
-            al nombre, no un fondo ni un borde, que son los recursos que las reglas de la v2
-            prohíben. Es la misma familia que 🏆 y 🎯: lo lúdico va en glifos, no en cajas.
+            ⭐ La corona del líder: la ceremonia que faltaba en el podio. Un símbolo pequeño en
+            oro junto al nombre, no un fondo ni un borde, que son los recursos que las reglas de
+            la v2 prohíben. Antes era el emoji 👑; al lado de un nombre se leía como un chat.
           */}
-          {corona && <Text style={s.corona}>{'\u{1F451}'}</Text>}
+          {corona && (
+            <Simbolo nombre="crown.fill" tamano={12} color={tema.color.oro} respaldo={'\u{1F451}'} />
+          )}
         </View>
         <Text style={s.filaDetalle}>
           {p.sesiones === 1 ? t.unaSesion : conValores(t.nSesiones, { n: p.sesiones })}
@@ -462,6 +475,7 @@ export function Ligas({
 }: Props) {
   const idioma = idiomaActual();
   const t = textos(idioma);
+  const insets = useSafeAreaInsets();
   const [horizonte, setHorizonte] = useState<IdHorizonte>(HORIZONTE_POR_DEFECTO);
 
   // Las dos páginas: 0 = Para ti, 1 = Amigos. El pager es la fuente de verdad del gesto.
@@ -865,14 +879,15 @@ export function Ligas({
       <Paginas ancho={ancho} scrollX={scrollX} pagerRef={pager} onPagina={setPagina}>
     <ScrollView
       style={s.fondo}
-      contentContainerStyle={s.contenido}
+      contentContainerStyle={[s.contenido, { paddingBottom: huecoBarra(insets.bottom) }]}
       // `pegado`: la cabecera ya no va dentro del scroll, así que la rueda no necesita bajar.
       refreshControl={<Recarga cargando={cargando} onRecargar={refrescar} pegado />}
     >
       {/*
-        ⭐ Dos desplegables, no tiras horizontales. Con 8 ligas las últimas quedaban fuera del
-        borde y había que arrastrar para verlas, que es lo que hacía que la pantalla pareciera
-        desalineada. La maqueta ya usaba `picker` con chevron por este motivo.
+        ⭐ Un desplegable para la liga (hasta ocho nombres largos: es una lista) y un control
+        SEGMENTADO para el periodo (rediseño del 15 sep): tres o cuatro opciones cortas no
+        merecen una hoja, se ven y se tocan. Antes eran dos desplegables, y el de periodo abría
+        una hoja desde abajo para elegir entre tres cosas.
       */}
       <View style={s.selectores}>
         <Selector
@@ -885,14 +900,13 @@ export function Ligas({
           }))}
         />
         {/* Ventana temporal. Las de calendario y las moviles responden preguntas distintas. */}
-        <Selector
-          suave
+        <Segmentado
           etiqueta={t.periodo}
           valor={horizonte}
           onCambio={setHorizonte}
           opciones={HORIZONTES.map((h) => ({
             id: h.id,
-            nombre: nombreHorizonte(h.id, idioma),
+            nombre: nombreHorizonteCorto(h.id, idioma),
           }))}
         />
       </View>
@@ -916,14 +930,20 @@ export function Ligas({
           Va como titulo, encima del puesto, con el numero de miembros al lado.
         */}
         <View style={s.tituloLiga}>
-          <Text style={s.tituloLigaNombre}>
+          <View style={s.tituloLigaFila}>
             {/*
-              El 📍 también en el título: la misma señal en el selector y en la pantalla. Y el
-              NOMBRE de la liga privada siempre (mismo bug que en `nombreDe`: aquí también salía
-              "General" en vez de "Chavales Z72").
+              La chincheta también en el título: la misma señal que en el selector. Aquí va como
+              símbolo del sistema (rediseño del 15 sep); en la lista del selector sigue el 📍,
+              que es texto puro. Y el NOMBRE de la liga privada siempre (mismo bug que en
+              `nombreDe`: aquí también salía "General" en vez de "Chavales Z72").
             */}
-            {zona !== null ? `📍 ${zona.distrito ?? zona.ciudad}` : liga.nombre}
-          </Text>
+            {zona !== null && (
+              <Simbolo nombre="mappin" tamano={18} color={tema.color.textoSuave} respaldo="📍" />
+            )}
+            <Text style={s.tituloLigaNombre} numberOfLines={1}>
+              {zona !== null ? (zona.distrito ?? zona.ciudad) : liga.nombre}
+            </Text>
+          </View>
           <Text style={s.tituloLigaMiembros}>
             {/*
               En zona, la división ES parte de "dónde estoy": va junto a los miembros. En una liga
@@ -1129,44 +1149,51 @@ export function Ligas({
                 >
                   {etiquetaPersona(g.nombre, g.usuario === yo, idioma)}
                 </Text>
-                <Text
-                  style={[s.temporadaTrofeos, i === 0 && s.temporadaLider]}
+                <View
+                  style={s.temporadaTrofeos}
+                  accessible
                   accessibilityLabel={
                     g.ganadas === 1
                       ? t.unaSemanaGanada
                       : conValores(t.semanasGanadas, { n: g.ganadas })
                   }
                 >
-                  {'\u{1F3C6}'} {g.ganadas}
-                </Text>
+                  {/* El trofeo del sistema en oro, no el emoji (rediseño del 15 sep). */}
+                  <Simbolo nombre="trophy.fill" tamano={14} color={tema.color.oro} respaldo={'\u{1F3C6}'} />
+                  <Text style={[s.temporadaTrofeosNumero, i === 0 && s.temporadaLider]}>{g.ganadas}</Text>
+                </View>
               </View>
             ))}
           </Aparece>
         )}
 
+        {/*
+          ⭐ Dos cápsulas en una fila, no tres o cuatro enlaces azules apilados (rediseño del
+          15 sep): una columna de enlaces se lee como una página web, y aquí hay dos acciones de
+          verdad: crear otra liga y entrar con un código. Lo de la zona va DEBAJO como enlace
+          único, porque es una decisión que se toma una vez (Apple: el camino común primero, lo
+          avanzado un nivel más abajo). Con etiqueta específica, no un genérico: "Compite en tu
+          zona" dice qué hay detrás.
+        */}
         <View style={s.acciones}>
-          {/*
-            ⭐ La puerta a las ligas de zona vive aquí, con las otras dos formas de competir.
-            Con etiqueta específica, no un genérico: "Compite en tu zona" dice qué hay detrás,
-            que es la regla de Apple sobre labels directos frente a umbrella vagos.
-          */}
-          {!ligas.some((l) => l.zona !== null) && (
-            <Pulsable style={s.secundario} accessibilityRole="button" onPress={onZona}>
-              <Text style={s.secundarioTexto}>{t.zonaTitulo}</Text>
-            </Pulsable>
-          )}
-          <Pulsable style={s.secundario} accessibilityRole="button" onPress={onCrear}>
-            <Text style={s.secundarioTexto}>{t.crearOtra}</Text>
+          <Pulsable style={s.pastilla} accessibilityRole="button" onPress={onCrear}>
+            <Simbolo nombre="plus" tamano={15} color={tema.color.marca} peso="semibold" respaldo="+" />
+            <Text style={s.pastillaTexto} numberOfLines={1}>
+              {t.crearOtra}
+            </Text>
           </Pulsable>
-          <Pulsable style={s.secundario} accessibilityRole="button" onPress={onEntrar}>
-            <Text style={s.secundarioTexto}>{t.entrarConCodigo}</Text>
+          <Pulsable style={s.pastilla} accessibilityRole="button" onPress={onEntrar}>
+            <Simbolo nombre="key.fill" tamano={15} color={tema.color.marca} respaldo="⌗" />
+            <Text style={s.pastillaTexto} numberOfLines={1}>
+              {t.entrarConCodigo}
+            </Text>
           </Pulsable>
-          {ligas.some((l) => l.zona !== null) && (
-            <Pulsable style={s.secundario} accessibilityRole="button" onPress={onZona}>
-              <Text style={s.secundarioTexto}>{t.cambiarZona}</Text>
-            </Pulsable>
-          )}
         </View>
+        <Pulsable style={s.secundario} accessibilityRole="button" onPress={onZona}>
+          <Text style={s.secundarioTexto}>
+            {ligas.some((l) => l.zona !== null) ? t.cambiarZona : t.zonaTitulo}
+          </Text>
+        </Pulsable>
 
         {/* Por qué el ranking es justo. Es la pregunta que se hace cualquiera al verse abajo. */}
         <Ciencia ids={FUENTES} />
@@ -1207,42 +1234,28 @@ const s = StyleSheet.create({
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: tema.espacio.l },
   // Título de estado vacío: aquí SÍ es grande, porque no compite con ninguna cifra.
   titulo: { fontSize: 22, fontWeight: '600', color: tema.color.texto, marginBottom: tema.espacio.s },
+  // El hueco de arriba lo pone el inset real del dispositivo (en el render), no una constante.
   cabecera: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: tema.espacio.m,
     paddingHorizontal: tema.espacio.l,
-    // ⚠️ Un poco mas de aire que `seguroArriba`: en el Development Build el menu de desarrollo
-    // pinta un engranaje flotante arriba a la derecha que se comia el boton de perfil. En
-    // produccion ese engranaje no existe, pero el margen extra no molesta.
-    paddingTop: tema.seguroArriba + tema.espacio.s,
   },
   // Nombre del producto en la cabecera. Discreto: la protagonista es la clasificación.
-  marca: { fontSize: 17, fontWeight: '600', color: tema.color.texto, letterSpacing: -0.3 },
-  cabeceraBotones: { flexDirection: 'row', gap: tema.espacio.s },
-  iconoBoton: {
-    width: tema.tactil,
-    height: tema.tactil,
-    borderRadius: tema.tactil / 2,
-    backgroundColor: tema.color.superficie,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconoTexto: { fontSize: 24, color: tema.color.marca, fontWeight: '400', lineHeight: 28 },
-  // Botón de amigos CON etiqueta: un "+" solo obligaba a adivinar qué añadía.
+  marca: { ...tema.tipo.tituloCompacto, color: tema.color.texto },
+  cabeceraBotones: { flexDirection: 'row', alignItems: 'center', gap: tema.espacio.s },
+  // Botón de amigos CON etiqueta: un "+" solo obligaba a adivinar qué añadía. Cápsula (alto/2).
   botonAmigos: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     minHeight: tema.tactil,
-    paddingHorizontal: 12,
-    borderRadius: tema.radio.m,
-    backgroundColor: 'rgba(198,203,240,0.14)',
+    paddingHorizontal: 14,
+    borderRadius: tema.tactil / 2,
+    backgroundColor: tema.color.marcaTenue,
   },
-  botonAmigosMas: { fontSize: 17, color: tema.color.marca, lineHeight: 20 },
   botonAmigosTexto: { fontSize: 13, fontWeight: '600', color: tema.color.marca },
-  iconoInicial: { ...tema.tipo.cuerpo, color: tema.color.marca, fontWeight: '600' },
   suave: {
     ...tema.tipo.cuerpo,
     color: tema.color.textoSuave,
@@ -1250,14 +1263,12 @@ const s = StyleSheet.create({
     marginBottom: tema.espacio.l,
   },
   suaveIzq: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, marginBottom: tema.espacio.l },
-  // Los dos desplegables en una fila. Sustituyen a las tiras horizontales, que con 8 ligas se
-  // salían por el borde.
+  // El desplegable de liga y, debajo, el control segmentado del periodo, a todo el ancho.
+  // Sustituyen a las tiras horizontales, que con 8 ligas se salían por el borde.
   selectores: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: tema.espacio.s,
     paddingHorizontal: tema.espacio.l,
-    marginBottom: tema.espacio.s,
+    marginBottom: tema.espacio.m,
   },
   // Cifra y frase en paralelo, como en la maqueta.
   hero: {
@@ -1279,9 +1290,19 @@ const s = StyleSheet.create({
   fila: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
+    gap: tema.espacio.s,
+    paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: tema.color.linea,
+  },
+  // ⭐ Tu fila: la píldora que abraza la fila (sangra 12 pt a cada lado), sin borde, con el
+  // bloque sutil del tema. La línea superior se apaga: la píldora ya separa.
+  filaYo: {
+    backgroundColor: tema.color.superficieSutil,
+    borderRadius: tema.radio.m,
+    marginHorizontal: -12,
+    paddingHorizontal: 12,
+    borderTopColor: 'transparent',
   },
   puesto: {
     fontSize: 13,
@@ -1298,38 +1319,17 @@ const s = StyleSheet.create({
   franjaBaja: { color: tema.color.bajo },
   // Frase de la jornada, encima de la tabla. Discreta: explica, no protagoniza.
   jornada: { ...tema.tipo.detalle, color: tema.color.textoSuave, marginBottom: tema.espacio.s },
-  avatar: {
-    // 34px como la maqueta: con 30 el avatar quedaba pequeño al lado del nombre.
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: tema.color.superficieSutil,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 13,
-    marginRight: 13,
-  },
-  // "Eres tu" se marca con relleno, no con borde de color: la regla de la v2.
-  avatarYo: { backgroundColor: 'rgba(198,203,240,0.16)' },
-  avatarTexto: { fontSize: 13, fontWeight: '600', color: tema.color.textoSuave },
-  avatarTextoYo: { color: tema.color.marca },
   filaMedio: { flex: 1, minWidth: 0 },
   // Nombre y corona en línea. `flexShrink` en el nombre para que la corona nunca se salga.
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   nombre: { ...tema.tipo.cuerpo, color: tema.color.texto, flexShrink: 1 },
-  // Pequeña a propósito: acompaña al nombre, no compite con él.
-  corona: { fontSize: 11 },
   filaDetalle: { ...tema.tipo.micro, color: tema.color.textoTenue, marginTop: 2 },
   puntos: { ...tema.tipo.valor, color: tema.color.texto },
   negrita: { fontWeight: '600' },
   // Nombre de la liga. Responde a "dónde estoy", que faltaba por completo.
   tituloLiga: { marginBottom: tema.espacio.s },
-  tituloLigaNombre: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: tema.color.texto,
-    letterSpacing: -0.4,
-  },
+  tituloLigaFila: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tituloLigaNombre: { ...tema.tipo.tituloPantalla, color: tema.color.texto, flexShrink: 1 },
   tituloLigaMiembros: { ...tema.tipo.micro, color: tema.color.textoTenue, marginTop: 2 },
   // Llamada a invitar cuando estás solo en la liga. Es la acción que hace crecer el producto.
   invitaVacio: {
@@ -1349,7 +1349,7 @@ const s = StyleSheet.create({
   // Tu progreso propio: fondo apenas perceptible, sin borde. Acompaña al puesto sin competir.
   progresoPropio: {
     backgroundColor: tema.color.superficieSutil,
-    borderRadius: 11,
+    borderRadius: tema.radio.m,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: tema.espacio.m,
@@ -1395,20 +1395,35 @@ const s = StyleSheet.create({
   },
   temporadaPuesto: { fontSize: 13, color: tema.color.textoTenue, width: 16, ...tema.cifras },
   temporadaNombre: { ...tema.tipo.cuerpo, color: tema.color.texto, flex: 1 },
-  temporadaTrofeos: { ...tema.tipo.valor, color: tema.color.texto },
+  temporadaTrofeos: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  temporadaTrofeosNumero: { ...tema.tipo.valor, color: tema.color.texto },
   // El que más jornadas lleva va en oro: es el campeón provisional de la temporada.
   temporadaLider: { color: tema.color.oro },
-  acciones: { marginTop: tema.espacio.m, gap: tema.espacio.s },
+  // Las dos cápsulas secundarias en fila, y debajo el enlace único de la zona.
+  acciones: { flexDirection: 'row', gap: tema.espacio.s, marginTop: tema.espacio.l },
+  pastilla: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: tema.tactil,
+    paddingHorizontal: tema.espacio.m,
+    borderRadius: tema.tactil / 2,
+    backgroundColor: tema.color.superficieSutil,
+  },
+  pastillaTexto: { ...tema.tipo.detalle, color: tema.color.marca, fontWeight: '600', flexShrink: 1 },
   boton: {
     backgroundColor: tema.color.marca,
     minHeight: tema.tactil,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: tema.espacio.l,
-    borderRadius: tema.radio.m,
+    borderRadius: tema.tactil / 2,
     marginBottom: tema.espacio.s,
   },
   botonTexto: { ...tema.tipo.cuerpo, color: tema.color.fondo, fontWeight: '600' },
-  secundario: { minHeight: tema.tactil, justifyContent: 'center' },
+  secundario: { minHeight: tema.tactil, justifyContent: 'center', alignItems: 'center' },
   secundarioTexto: { ...tema.tipo.cuerpo, color: tema.color.marca },
   error: { ...tema.tipo.detalle, color: tema.color.bajo, marginBottom: tema.espacio.m },
   espera: { marginVertical: tema.espacio.l },

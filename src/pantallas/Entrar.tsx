@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { Halo } from '../componentes/Halo';
 import { Marca } from '../componentes/Marca';
 import { Pulsable } from '../componentes/Pulsable';
 import { ESCALON, useEntrada } from '../movimiento';
@@ -95,6 +96,9 @@ export function Entrar({ onDentro }: Props) {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
     >
+      {/* El halo detrás de la marca (rediseño del 15 sep): era la única pantalla de portada
+          que arrancaba plana, y es la que ve alguien nuevo. */}
+      <Halo />
       {paso === 'entrar' && (
         <>
           {/*

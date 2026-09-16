@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { SFSymbol } from 'expo-symbols';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Halo } from '../componentes/Halo';
+import { Marca } from '../componentes/Marca';
 import { Pulsable } from '../componentes/Pulsable';
+import { Simbolo } from '../componentes/Simbolo';
 
 import { hayHealthKit, preparar } from '../salud/permisos';
 import { textos } from '../i18n/textos';
@@ -22,12 +21,20 @@ import { tema } from '../tema';
  *
  * Tres cosas tiene que quedar claras antes de que iOS pregunte: que se lee,
  * para que, y donde acaba el dato.
+ *
+ * ⭐ Rediseño del 15 sep: era un muro de texto (título de 22 y siete párrafos) y es lo PRIMERO
+ * que ve alguien nuevo. Ahora sigue el patrón de bienvenida de iOS: la marca con el halo arriba,
+ * título grande, una fila por idea (símbolo del sistema + titular con peso + detalle), y el
+ * botón anclado abajo. Todos los textos que exigía Apple siguen aquí; lo que cambia es que se
+ * pueden leer de un vistazo. El aviso de "no es médica" va en texto suave con el símbolo en
+ * coral: es información legal, no un dato "peor", y el coral pleno en un párrafo satura.
  */
 
 type Props = { onListo: () => void; onSaltar: () => void };
 
 export function Bienvenida({ onListo, onSaltar }: Props) {
   const t = textos();
+  const insets = useSafeAreaInsets();
   const [pidiendo, setPidiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const disponible = hayHealthKit();
@@ -47,23 +54,38 @@ export function Bienvenida({ onListo, onSaltar }: Props) {
   }
 
   return (
-    <ScrollView style={s.fondo} contentContainerStyle={s.contenido}>
+    <ScrollView
+      style={s.fondo}
+      contentContainerStyle={[
+        s.contenido,
+        { paddingTop: insets.top + tema.espacio.xl, paddingBottom: Math.max(insets.bottom, tema.espacio.l) },
+      ]}
+    >
+      <Halo />
+      <Marca lado={64} entra />
       <Text style={s.titulo}>{t.bienvenidaTitulo}</Text>
       <Text style={s.entrada}>{t.bienvenidaEntrada}</Text>
 
-      <Text style={s.seccion}>{t.queLeemos}</Text>
-      <Punto titulo={t.queLeemosSesiones} detalle={t.queLeemosSesionesDetalle} />
-      <Punto titulo={t.queLeemosFc} detalle={t.queLeemosFcDetalle} />
-      <Punto titulo={t.queLeemosSalud} detalle={t.queLeemosSaludDetalle} />
-
-      <Text style={s.seccion}>{t.dondeVa}</Text>
-      <Text style={s.cuerpo}>{t.dondeVaDetalle}</Text>
-      <Text style={s.cuerpo}>{t.dondeVaCompartido}</Text>
+      <View style={s.filas}>
+        <Caracteristica simbolo="figure.run" respaldo="🏃" titulo={t.queLeemosSesiones} detalle={t.queLeemosSesionesDetalle} />
+        <Caracteristica simbolo="heart.fill" respaldo="♥" titulo={t.queLeemosFc} detalle={t.queLeemosFcDetalle} />
+        <Caracteristica simbolo="waveform.path.ecg" respaldo="∿" titulo={t.queLeemosSalud} detalle={t.queLeemosSaludDetalle} />
+        <Caracteristica
+          simbolo="lock.fill"
+          respaldo="🔒"
+          titulo={t.dondeVa}
+          detalle={`${t.dondeVaDetalle} ${t.dondeVaCompartido}`}
+        />
+      </View>
 
       <Text style={s.nota}>{t.puedesCambiar}</Text>
 
-      {!disponible && <Text style={s.aviso}>{t.sinHealthKit}</Text>}
-      {error !== null && <Text style={s.aviso}>{error}</Text>}
+      {!disponible && <Aviso texto={t.sinHealthKit} />}
+      {error !== null && <Aviso texto={error} />}
+
+      {/* El hueco elástico: el botón se apoya abajo cuando la pantalla da, y baja con el
+          contenido cuando no. */}
+      <View style={s.hueco} />
 
       <Pulsable
         style={[s.boton, (!disponible || pidiendo) && s.botonInactivo]}
@@ -86,47 +108,66 @@ export function Bienvenida({ onListo, onSaltar }: Props) {
   );
 }
 
-function Punto({ titulo, detalle }: { titulo: string; detalle: string }) {
+function Caracteristica({
+  simbolo,
+  respaldo,
+  titulo,
+  detalle,
+}: {
+  simbolo: SFSymbol;
+  respaldo: string;
+  titulo: string;
+  detalle: string;
+}) {
   return (
-    <View style={s.punto}>
-      <Text style={s.puntoTitulo}>{titulo}</Text>
-      <Text style={s.puntoDetalle}>{detalle}</Text>
+    <View style={s.caracteristica}>
+      <View style={s.icono}>
+        <Simbolo nombre={simbolo} tamano={28} color={tema.color.marca} peso="medium" respaldo={respaldo} />
+      </View>
+      <View style={s.caracteristicaTextos}>
+        <Text style={s.caracteristicaTitulo}>{titulo}</Text>
+        <Text style={s.caracteristicaDetalle}>{detalle}</Text>
+      </View>
+    </View>
+  );
+}
+
+function Aviso({ texto }: { texto: string }) {
+  return (
+    <View style={s.aviso}>
+      <Simbolo nombre="exclamationmark.triangle.fill" tamano={16} color={tema.color.bajo} respaldo="!" />
+      <Text style={s.avisoTexto}>{texto}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: tema.color.fondo },
-  contenido: {
-    padding: tema.espacio.l,
-    paddingTop: tema.seguroArriba + tema.espacio.m,
-    gap: tema.espacio.m,
-  },
-  // ⭐ Título de PANTALLA, 22px. El de 15px tenue es para etiquetas encima de una cifra, y
-  // aquí no hay cifra: con 15px la pantalla de bienvenida abría sin ancla para el ojo.
-  titulo: { ...tema.tipo.tituloPantalla, color: tema.color.texto },
-  entrada: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, lineHeight: 22 },
-  seccion: {
-    ...tema.tipo.seccion,
-    color: tema.color.marca,
-    marginTop: tema.espacio.m,
-  },
-  punto: { gap: tema.espacio.xs },
-  puntoTitulo: { ...tema.tipo.cuerpo, color: tema.color.texto, fontWeight: '600' },
-  puntoDetalle: { ...tema.tipo.detalle, color: tema.color.textoSuave, lineHeight: 19 },
-  cuerpo: { ...tema.tipo.detalle, color: tema.color.textoSuave, lineHeight: 19 },
-  nota: { ...tema.tipo.detalle, color: tema.color.textoSuave, marginTop: tema.espacio.s },
-  aviso: { ...tema.tipo.detalle, color: tema.color.bajo, lineHeight: 19 },
+  contenido: { flexGrow: 1, paddingHorizontal: tema.espacio.l },
+  // ⭐ Título GRANDE de bienvenida. No hay cifra que proteger: el título es el ancla.
+  titulo: { ...tema.tipo.tituloGrande, color: tema.color.texto, marginTop: tema.espacio.l },
+  entrada: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, marginTop: tema.espacio.s },
+  filas: { marginTop: tema.espacio.l, gap: tema.espacio.l },
+  caracteristica: { flexDirection: 'row', alignItems: 'flex-start', gap: tema.espacio.m },
+  // Caja fija para el símbolo: los cuatro titulares alinean igual aunque el trazo varíe.
+  icono: { width: 32, alignItems: 'center', marginTop: 2 },
+  caracteristicaTextos: { flex: 1 },
+  caracteristicaTitulo: { ...tema.tipo.destacado, color: tema.color.texto },
+  caracteristicaDetalle: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, marginTop: 3 },
+  nota: { ...tema.tipo.detalle, color: tema.color.textoTenue, marginTop: tema.espacio.l },
+  aviso: { flexDirection: 'row', alignItems: 'flex-start', gap: tema.espacio.s, marginTop: tema.espacio.m },
+  avisoTexto: { ...tema.tipo.detalle, color: tema.color.textoSuave, lineHeight: 19, flex: 1 },
+  hueco: { flex: 1, minHeight: tema.espacio.xl },
+  // Cápsula, como los botones del sistema en iOS 26. Un poco más alta que el mínimo táctil.
   boton: {
     backgroundColor: tema.color.marca,
-    borderRadius: tema.radio.m,
-    minHeight: tema.tactil,
+    borderRadius: 25,
+    minHeight: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: tema.espacio.m,
   },
   botonInactivo: { opacity: 0.4 },
-  botonTexto: { ...tema.tipo.cuerpo, color: tema.color.fondo, fontWeight: '600' },
+  botonTexto: { ...tema.tipo.destacado, color: tema.color.fondo },
   saltar: {
     ...tema.tipo.detalle,
     color: tema.color.textoSuave,

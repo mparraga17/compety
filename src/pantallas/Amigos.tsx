@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { Avatar } from '../componentes/Avatar';
 import { Pulsable } from '../componentes/Pulsable';
 import { Recarga } from '../componentes/Recarga';
 import { Selector } from '../componentes/Selector';
@@ -167,8 +168,8 @@ export function Amigos({ ligas, onPersona }: Props) {
 
       {hallado !== null && (
         <View style={s.fila}>
-          <View style={s.avatar}>
-            <Text style={s.avatarTexto}>{hallado.nombre.slice(0, 1).toUpperCase()}</Text>
+          <View style={s.avatarCaja}>
+            <Avatar nombre={hallado.nombre} />
           </View>
           <View style={s.filaMedio}>
             <Text style={s.nombre}>{hallado.nombre}</Text>
@@ -217,8 +218,8 @@ export function Amigos({ ligas, onPersona }: Props) {
           <Text style={s.seccion}>{t.teHanAgregado}</Text>
           {recibidas.map((p) => (
             <View key={p.id} style={s.fila}>
-              <View style={s.avatar}>
-                <Text style={s.avatarTexto}>{p.nombre.slice(0, 1).toUpperCase()}</Text>
+              <View style={s.avatarCaja}>
+                <Avatar nombre={p.nombre} />
               </View>
               <View style={s.filaMedio}>
                 <Text style={s.nombre}>{p.nombre}</Text>
@@ -287,8 +288,8 @@ export function Amigos({ ligas, onPersona }: Props) {
             accessibilityRole="button"
             accessibilityLabel={a.nombre}
           >
-            <View style={s.avatar}>
-              <Text style={s.avatarTexto}>{a.nombre.slice(0, 1).toUpperCase()}</Text>
+            <View style={s.avatarCaja}>
+              <Avatar nombre={a.nombre} />
             </View>
             <View style={s.filaMedio}>
               <Text style={s.nombre}>{a.nombre}</Text>
@@ -374,31 +375,32 @@ const s = StyleSheet.create({
     paddingHorizontal: tema.espacio.m,
     paddingVertical: tema.espacio.s + 2,
   },
-  fila: { flexDirection: 'row', alignItems: 'center', paddingVertical: tema.espacio.s },
+  // Filas con el mismo ritmo y el mismo separador que la clasificación (rediseño del 15 sep):
+  // antes iban sin línea y con 8 de padding, la única lista de la app sin separadores.
+  fila: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tema.color.linea,
+  },
   // La parte pulsable de la fila de un amigo: avatar y nombre, ocupando lo que no es el botón.
   filaPersona: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: tema.tactil },
-  avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: tema.color.superficie,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: tema.espacio.s + 2,
-  },
-  avatarTexto: { ...tema.tipo.detalle, color: tema.color.marca, fontWeight: '600' },
+  // El avatar es el compartido (`Avatar`, con tono de identidad); aquí solo su hueco.
+  avatarCaja: { marginRight: tema.espacio.s + 2 },
   filaMedio: { flex: 1 },
   nombre: { ...tema.tipo.cuerpo, color: tema.color.texto },
   filaDetalle: { ...tema.tipo.detalle, color: tema.color.textoSuave },
   filaEstado: { ...tema.tipo.detalle, color: tema.color.textoSuave },
   // ⚠️ 44 de alto minimo: es lo que pide la guia de Apple para un objetivo tactil. Con el
   // padding de antes salian 32 y fallaban los dedos gordos.
+  // Cápsula (alto/2), como el resto de botones de la app. Era el único con radio 8.
   botonMini: {
     backgroundColor: tema.color.marca,
     minHeight: tema.tactil,
     justifyContent: 'center',
     paddingHorizontal: tema.espacio.m,
-    borderRadius: tema.radio.s,
+    borderRadius: tema.tactil / 2,
     marginLeft: tema.espacio.s,
   },
   botonMiniTexto: { ...tema.tipo.detalle, color: tema.color.fondo, fontWeight: '600' },

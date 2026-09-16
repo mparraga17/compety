@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Halo } from '../componentes/Halo';
+import { Hoja } from '../componentes/Hoja';
 import { Marca } from '../componentes/Marca';
 import { Pulsable } from '../componentes/Pulsable';
 import { Simbolo } from '../componentes/Simbolo';
@@ -37,6 +38,8 @@ export function Bienvenida({ onListo, onSaltar }: Props) {
   const insets = useSafeAreaInsets();
   const [pidiendo, setPidiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // La hoja con el detalle de qué ven los demás. Abierta desde la fila de privacidad.
+  const [detallePrivacidad, setDetallePrivacidad] = useState(false);
   const disponible = hayHealthKit();
 
   async function pedir() {
@@ -70,13 +73,24 @@ export function Bienvenida({ onListo, onSaltar }: Props) {
         <Caracteristica simbolo="figure.run" respaldo="🏃" titulo={t.queLeemosSesiones} detalle={t.queLeemosSesionesDetalle} />
         <Caracteristica simbolo="heart.fill" respaldo="♥" titulo={t.queLeemosFc} detalle={t.queLeemosFcDetalle} />
         <Caracteristica simbolo="waveform.path.ecg" respaldo="∿" titulo={t.queLeemosSalud} detalle={t.queLeemosSaludDetalle} />
-        <Caracteristica
-          simbolo="lock.fill"
-          respaldo="🔒"
-          titulo={t.dondeVa}
-          detalle={`${t.dondeVaDetalle} ${t.dondeVaCompartido}`}
-        />
+        {/*
+          ⭐ La fila de privacidad dice UNA cosa: qué sube y qué no (16 sep). Antes concatenaba
+          también lo que ven los miembros de la liga y los amigos en el feed: unas sesenta palabras
+          en una fila, que nadie lee en una pantalla que quiere pasar. Eso sigue aquí, a un toque, en
+          una hoja: es lo que Apple exige que esté (y está), sin taparle el resto a quien no lo pida.
+        */}
+        <Caracteristica simbolo="lock.fill" respaldo="🔒" titulo={t.dondeVa} detalle={t.dondeVaDetalle}>
+          <Pulsable style={s.enlace} onPress={() => setDetallePrivacidad(true)} accessibilityRole="button">
+            <Text style={s.enlaceTexto}>{t.dondeVaMas}</Text>
+            <Simbolo nombre="chevron.right" tamano={11} color={tema.color.marca} peso="semibold" respaldo="›" />
+          </Pulsable>
+        </Caracteristica>
       </View>
+
+      <Hoja visible={detallePrivacidad} onCerrar={() => setDetallePrivacidad(false)} titulo={t.dondeVa}>
+        <Text style={s.hojaTexto}>{t.dondeVaDetalle}</Text>
+        <Text style={s.hojaTexto}>{t.dondeVaCompartido}</Text>
+      </Hoja>
 
       <Text style={s.nota}>{t.puedesCambiar}</Text>
 
@@ -113,11 +127,14 @@ function Caracteristica({
   respaldo,
   titulo,
   detalle,
+  children,
 }: {
   simbolo: SFSymbol;
   respaldo: string;
   titulo: string;
   detalle: string;
+  /** Debajo del detalle: el enlace a "qué ven los demás" en la fila de privacidad. */
+  children?: ReactNode;
 }) {
   return (
     <View style={s.caracteristica}>
@@ -127,6 +144,7 @@ function Caracteristica({
       <View style={s.caracteristicaTextos}>
         <Text style={s.caracteristicaTitulo}>{titulo}</Text>
         <Text style={s.caracteristicaDetalle}>{detalle}</Text>
+        {children}
       </View>
     </View>
   );
@@ -154,6 +172,10 @@ const s = StyleSheet.create({
   caracteristicaTextos: { flex: 1 },
   caracteristicaTitulo: { ...tema.tipo.destacado, color: tema.color.texto },
   caracteristicaDetalle: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, marginTop: 3 },
+  // El enlace de la fila de privacidad: texto de marca con chevron, alto táctil, pegado a la izquierda.
+  enlace: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', minHeight: tema.tactil },
+  enlaceTexto: { ...tema.tipo.detalle, color: tema.color.marca, fontWeight: '600' },
+  hojaTexto: { ...tema.tipo.cuerpo, color: tema.color.textoSuave, marginBottom: tema.espacio.m },
   nota: { ...tema.tipo.detalle, color: tema.color.textoTenue, marginTop: tema.espacio.l },
   aviso: { flexDirection: 'row', alignItems: 'flex-start', gap: tema.espacio.s, marginTop: tema.espacio.m },
   avisoTexto: { ...tema.tipo.detalle, color: tema.color.textoSuave, lineHeight: 19, flex: 1 },

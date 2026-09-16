@@ -19,10 +19,6 @@ import { getLocales } from 'expo-localization';
 export type Idioma = 'es' | 'en';
 
 const ES = {
-  // Arranque: la frase bajo la marca mientras se comprueba la sesión. Juego de palabras con el
-  // nombre (Compety ≈ compite), pedido así por el usuario el 16 sep.
-  lema: 'Compety con tus amigos',
-
   // Bienvenida. Apple rechaza apps que usan HealthKit sin explicar la funcion en
   // la interfaz, asi que esta pantalla es requisito, no cortesia.
   bienvenidaTitulo: 'Compite por lo que te cuesta',
@@ -41,6 +37,8 @@ const ES = {
     'El cálculo se hace en tu iPhone. Al servidor sube tu puntuación y, de cada entreno, el deporte y la hora; nunca tus pulsos, tu sueño ni la duración.',
   dondeVaCompartido:
     'Los miembros de tu liga ven tu puntuación y tu posición. Tus amigos y tus ligas privadas ven además tus entrenos en el feed: deporte, puntos y si fue una sesión fuerte para ti. Nada más.',
+  // Enlace bajo la fila de privacidad de la bienvenida: abre `dondeVaCompartido` en una hoja.
+  dondeVaMas: 'Qué ven los demás',
   puedesCambiar: 'Puedes cambiar los permisos cuando quieras desde Ajustes.',
   continuar: 'Continuar',
   masTarde: 'Ahora no',
@@ -530,7 +528,6 @@ const ES = {
 } as const;
 
 const EN: Record<keyof typeof ES, string> = {
-  lema: 'Compety with your friends',
   bienvenidaTitulo: 'Compete on what it costs you',
   bienvenidaEntrada:
     'Compety measures the effort of each session and turns it into points. A hard barre class can score more than an easy run.',
@@ -547,6 +544,7 @@ const EN: Record<keyof typeof ES, string> = {
     'The calculation happens on your iPhone. Your score goes to the server and, for each workout, the sport and the time; never your heart rate, your sleep or the duration.',
   dondeVaCompartido:
     'League members see your score and your position. Your friends and private leagues also see your workouts in the feed: sport, points and whether it was a hard session for you. Nothing else.',
+  dondeVaMas: 'What others see',
   puedesCambiar: 'You can change permissions any time in Settings.',
   continuar: 'Continue',
   masTarde: 'Not now',

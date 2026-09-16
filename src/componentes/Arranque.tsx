@@ -3,7 +3,6 @@ import { Animated, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { IMAGEN_MARCA } from './Marca';
 import { CURVA, MS, RESORTE, useReducirMovimiento } from '../movimiento';
-import { textos } from '../i18n/textos';
 import { tema } from '../tema';
 
 /**
@@ -53,8 +52,15 @@ type Props = {
   onFin: () => void;
 };
 
+/**
+ * El lema, en inglés en TODOS los idiomas (decisión del usuario, 16 sep): es una frase de marca,
+ * como el nombre, no un texto de interfaz. Por eso no vive en i18n.
+ */
+const LEMA = 'Compety with your friends';
+/** Lado de la marca. Un tercio del ancho de un iPhone: es la portada, no un icono. */
+const LADO_MARCA = 128;
 /** Desde cuántos puntos por debajo sube la marca. */
-const SUBIDA = 48;
+const SUBIDA = 56;
 /** Cuándo entra el lema: la marca lleva el 65 % del recorrido y está frenando. */
 const RETARDO_LEMA = 260;
 /** Mínimo en pantalla antes de salir, para que el lema se lea. */
@@ -65,7 +71,6 @@ const MS_SALIDA = 280;
 const ESTIRON = 1.12;
 
 export function Arranque({ listo, onFin }: Props) {
-  const t = textos();
   const { width } = useWindowDimensions();
   const reducir = useReducirMovimiento();
 
@@ -138,7 +143,7 @@ export function Arranque({ listo, onFin }: Props) {
         accessible={false}
         resizeMode="contain"
       />
-      <Animated.Text style={[s.lema, estiloLema]}>{t.lema}</Animated.Text>
+      <Animated.Text style={[s.lema, estiloLema]}>{LEMA}</Animated.Text>
     </Animated.View>
   );
 }
@@ -156,7 +161,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  marca: { width: 84, height: 84, tintColor: tema.color.marca },
-  // El lema: peso medio, un punto más que el cuerpo, en tinta suave. Marca, no titular.
-  lema: { fontSize: 17, fontWeight: '500', letterSpacing: -0.2, color: tema.color.textoSuave, marginTop: tema.espacio.m },
+  marca: { width: LADO_MARCA, height: LADO_MARCA, tintColor: tema.color.marca },
+  // El lema: peso medio, dos puntos más que el cuerpo (la marca es grande), en tinta suave.
+  lema: { fontSize: 19, fontWeight: '500', letterSpacing: -0.3, color: tema.color.textoSuave, marginTop: tema.espacio.l },
 });

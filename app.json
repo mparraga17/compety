@@ -50,7 +50,8 @@
         {
           "locationWhenInUsePermission": "Compety usa tu ubicacion UNA vez, al elegir tu zona, para sugerirte tu ciudad y tu distrito en las ligas locales. No se rastrea tu posicion ni se guarda ninguna coordenada: al servidor solo viaja el nombre de la zona que tu confirmes."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

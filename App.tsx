@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { registrarSegundoPlano } from './src/avisos/segundoPlano';
 import { escucharToques, guardarToken, prepararCanal, prepararPush } from './src/avisos/push';
+import { Arranque } from './src/componentes/Arranque';
 import { Celebracion } from './src/componentes/Celebracion';
 import { HALO_PODIO } from './src/componentes/Halo';
 import { Marca } from './src/componentes/Marca';
@@ -119,6 +120,8 @@ function Raiz() {
   const [, setIdioma] = useState(idiomaActual());
   const t = textos();
   const [fase, setFase] = useState<Fase>('comprobando');
+  // La capa de arranque (marca, lema y salida hacia la derecha). Se va una vez por proceso.
+  const [arranque, setArranque] = useState<'en-curso' | 'hecho'>('en-curso');
   // Arranca en Competi, que es la primera de la barra y la tesis del producto.
   const [pestana, setPestana] = useState<IdPestana>('competi');
   /**
@@ -732,14 +735,13 @@ function Raiz() {
     <View style={s.fondo}>
       <StatusBar style="light" />
 
-      {fase === 'comprobando' && (
-        /*
-          ⭐ La marca en vez de un spinner. Un spinner dice "espera"; la marca dice "llegas".
-          La fase dura décimas de segundo, así que el fundido de entrada (`entra`) es todo el
-          movimiento que admite: si la sesión ya está, la marca aparece y da paso a la app sin
-          que nada gire. Es el momento splash-a-app, y `useEntrada` ya respeta el ajuste de
-          movimiento reducido.
-        */
+      {/*
+        ⭐ El arranque es una CAPA encima de todo (`Arranque`, al final de este árbol), no una fase:
+        la marca sube, aparece el lema y todo sale hacia la derecha descubriendo la pantalla que
+        toque, que ya está montada debajo. Aquí solo queda el caso de volver a comprobar desde
+        "sin conexión", cuando la capa ya se fue: la marca centrada, sin más.
+      */}
+      {fase === 'comprobando' && arranque === 'hecho' && (
         <View style={s.centro}>
           <Marca lado={72} entra />
         </View>
@@ -994,6 +996,14 @@ function Raiz() {
         tabla de la liga, desde el feed o desde el modal de Amigos, encima de lo que haya.
       */}
       <Persona persona={persona} yo={cuenta?.id ?? null} onCerrar={() => setPersona(null)} />
+
+      {/*
+        ⭐ La capa de arranque, la última del árbol para quedar encima de todo. Sale cuando la fase
+        está decidida (`listo`) y el lema se ha podido leer; entonces se desmonta y no vuelve.
+      */}
+      {arranque === 'en-curso' && (
+        <Arranque listo={fase !== 'comprobando'} onFin={() => setArranque('hecho')} />
+      )}
     </View>
   );
 }

@@ -19,6 +19,10 @@ import { getLocales } from 'expo-localization';
 export type Idioma = 'es' | 'en';
 
 const ES = {
+  // Arranque: la frase bajo la marca mientras se comprueba la sesión. Juego de palabras con el
+  // nombre (Compety ≈ compite), pedido así por el usuario el 16 sep.
+  lema: 'Compety con tus amigos',
+
   // Bienvenida. Apple rechaza apps que usan HealthKit sin explicar la funcion en
   // la interfaz, asi que esta pantalla es requisito, no cortesia.
   bienvenidaTitulo: 'Compite por lo que te cuesta',
@@ -526,6 +530,7 @@ const ES = {
 } as const;
 
 const EN: Record<keyof typeof ES, string> = {
+  lema: 'Compety with your friends',
   bienvenidaTitulo: 'Compete on what it costs you',
   bienvenidaEntrada:
     'Compety measures the effort of each session and turns it into points. A hard barre class can score more than an easy run.',

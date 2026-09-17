@@ -117,9 +117,16 @@ function redactar(nombre: string, aviso: Aviso): { title: string; body: string }
         body: aviso.texto ? `Ha comentado tu entreno: «${aviso.texto}»` : 'Ha comentado tu entreno.',
       };
     default:
+      // Sesión (migración 14: se avisa de TODAS, no solo de las fuertes). El tono, que compara con
+      // la base propia de quien entrena, es lo único que distingue el texto; nunca datos de salud.
       return {
         title: nombre,
-        body: `Ha sumado ${aviso.puntos} puntos. Una de sus sesiones más fuertes.`,
+        body:
+          aviso.tono === 'fuerte'
+            ? `Ha sumado ${aviso.puntos} puntos. Una de sus sesiones más fuertes.`
+            : aviso.tono === 'suave'
+              ? `Ha sumado ${aviso.puntos} puntos con una sesión suave.`
+              : `Ha entrenado y ha sumado ${aviso.puntos} puntos.`,
       };
   }
 }

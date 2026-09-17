@@ -27,6 +27,12 @@
 -- cambia. Los avisos antiguos por liga ya enviados siguen resolviéndose como antes en
 -- `destinatarios_de` (rama 1, `liga is not null`).
 --
+-- ✅ APLICADA a producción el 17 sep 2026 (13:00 Madrid), en transacción, con respaldo JSON previo en
+-- supabase/.temp/respaldo-20260917-1144-antes-mig14/ (300 filas) y checklist pasado en transacciones
+-- con rollback: sesión normal sin liga inserta con huella normalizada y 1 destinatario (el único
+-- amigo); repetir en formato viejo no duplica; tono raro, liderato, sin sesión y liga ajena fallan
+-- cerrados; 300 filas después; hay_demo() = 0. Publicada la OTA b0d213fb con el cliente nuevo.
+--
 -- No destructiva: una restricción relajada y dos funciones reemplazadas. Idempotente.
 -- Aplicar con respaldo previo (supabase/.temp/respaldo.ps1) y:
 --   npx supabase db query --linked --project-ref vrmfvjtwyaofkqpvpbmx -o json -f supabase/migracion-14-avisos-toda-sesion.sql

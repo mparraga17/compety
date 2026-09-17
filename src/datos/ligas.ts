@@ -403,10 +403,6 @@ export async function cambiarAvisos(liga: string, avisos: boolean): Promise<void
   if (error) throw error;
 }
 
-/** Borrado de cuenta desde la app. Apple lo exige. */
-export async function borrarCuenta(): Promise<void> {
-  if (!HAY_SERVIDOR) return;
-  const { error } = await supabase.rpc('borrar_mi_cuenta');
-  if (error) throw error;
-  await supabase.auth.signOut();
-}
+// El borrado de cuenta vive en `cuenta.ts` y pasa por la Edge Function `borrar-cuenta`, que revoca el
+// Sign in with Apple antes de llamar a `borrar_mi_cuenta()`. Llamar al RPC directamente desde la app
+// (lo que había aquí hasta el 16 sep) borraba sin revocar: no debe volver a existir ese atajo.

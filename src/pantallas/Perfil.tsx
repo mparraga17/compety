@@ -85,8 +85,10 @@ export function Perfil({ cuenta, onCambio, onFuera, onAmigos, onIdioma }: Props)
           text: t.borrar,
           style: 'destructive',
           onPress: () => void accion(async () => {
-            await borrarCuenta();
-            onFuera();
+            // Vuelve a pedir Sign in with Apple para poder revocarlo; si se cancela esa hoja,
+            // `borrarCuenta` devuelve false y aquí no pasa nada.
+            const hecho = await borrarCuenta();
+            if (hecho) onFuera();
           }),
         },
       ],

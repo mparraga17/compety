@@ -22,5 +22,11 @@ module.exports = {
   // `src/componentes` entro el 16 sep por `repartoEstilo.test.ts`: el reparto del estilo de un
   // Pulsable es una funcion pura (solo importa TIPOS de react-native), asi que corre aqui sin
   // renderizar nada. Los componentes en si siguen sin tests: exigirian un renderer.
-  testMatch: ['**/src/(motor|i18n|datos|avisos|componentes)/**/*.test.ts'],
+  // `supabase/functions` entro el 16 sep por `borrar-cuenta/apple.test.ts`: la parte pura de la
+  // Edge Function (firmar el client_secret de Apple, canjear y revocar) usa solo WebCrypto y fetch,
+  // que Node 24 y Deno comparten. El `index.ts` con `Deno.serve` no se importa desde ningun test.
+  testMatch: [
+    '**/src/(motor|i18n|datos|avisos|componentes)/**/*.test.ts',
+    '**/supabase/functions/**/*.test.ts',
+  ],
 };

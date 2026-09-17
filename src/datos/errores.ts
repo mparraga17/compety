@@ -40,6 +40,10 @@ const CONOCIDOS: readonly (readonly [string, string])[] = [
   ['esa semana ya esta cerrada', 'Esa semana ya está cerrada y no cambia.'],
   ['no se pudo generar codigo', 'No se pudo crear la liga. Prueba otra vez.'],
   ['sin-servidor', 'No hay conexión con el servidor.'],
+  // Borrado de cuenta (Edge Function `borrar-cuenta`): Apple tiene que revocar antes de borrar.
+  ['apple-no-revocado', 'No hemos podido cerrar tu sesión de Apple. Vuelve a intentarlo.'],
+  ['apple-sin-codigo', 'Apple no devolvió la autorización. Vuelve a intentarlo.'],
+  ['no se pudo borrar la cuenta', 'No se pudo borrar la cuenta. Vuelve a intentarlo en un momento.'],
   ['primero hay que crear el perfil', 'Falta tu nombre. Vuelve a entrar para completarlo.'],
   // El servidor acota las fechas que manda el teléfono a ±2 días de la suya (migraciones 10 y
   // 12). Solo salta con un reloj muy desajustado, y entonces la salida es arreglar el reloj.

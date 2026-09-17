@@ -1,9 +1,8 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { isAuthRetryableFetchError } from '@supabase/supabase-js';
+import { FunctionsHttpError, isAuthRetryableFetchError } from '@supabase/supabase-js';
 
 import { actualizaCuenta, guardaCuenta, leeCuenta, olvidaCuenta } from './almacen';
 import { almacenNativo, borrarTodoLocal } from './almacenNativo';
-import { borrarCuenta as borrarEnServidor } from './ligas';
 import { HAY_SERVIDOR, supabase, usuarioActual } from './supabase';
 import { olvidaZonaHorariaDeclarada } from './zonaHoraria';
 import { soltarToken } from '../avisos/push';
@@ -249,12 +248,73 @@ export async function salir(): Promise<void> {
 /**
  * Borrado de cuenta. Requisito de Apple para apps con cuentas.
  * El borrado en cascada del perfil se lleva miembros, puntuaciones, avisos y amistades.
+ *
+ * ⭐ Desde el 16 sep pasa por la Edge Function `borrar-cuenta`, que REVOCA el Sign in with Apple
+ * antes de borrar (guía 5.1.1(v): sin eso, rechazo en la revisión). Para revocar, Apple necesita un
+ * `authorizationCode` fresco (un solo uso, cinco minutos), así que se vuelve a pedir Sign in with
+ * Apple justo antes: es también la confirmación de identidad que Apple permite exigir antes de un
+ * borrado. Si la persona cancela esa hoja, no se borra nada y se devuelve `false`.
+ *
+ * Si la cuenta no entró con Apple (mañana, correo), no hay hoja ni código: la función solo borra.
  */
-export async function borrarCuenta(): Promise<void> {
+export async function borrarCuenta(): Promise<boolean> {
+  if (!HAY_SERVIDOR) {
+    await borrarTodoLocal();
+    return true;
+  }
+
+  const { data, error: errorUsuario } = await supabase.auth.getUser();
+  if (errorUsuario) throw errorUsuario;
+  const conApple = data.user?.identities?.some((i) => i.provider === 'apple') ?? false;
+
+  let codigo: string | null = null;
+  if (conApple) {
+    try {
+      // Sin scopes: no hace falta ni nombre ni correo, solo el código.
+      const credencial = await AppleAuthentication.signInAsync({ requestedScopes: [] });
+      codigo = credencial.authorizationCode;
+    } catch (e) {
+      // Cancelar la hoja es cancelar el borrado, no un error.
+      if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return false;
+      throw e;
+    }
+    if (codigo === null) throw new Error('apple-sin-codigo');
+  }
+
   // Aqui un fallo al soltar el token NO bloquea: el borrado en cascada del perfil se lleva
   // el token de todas formas, y bloquear el borrado de cuenta (requisito de Apple) por un
   // update prescindible seria el tradeoff equivocado.
   await soltarToken().catch(() => undefined);
-  await borrarEnServidor();
+
+  const { error } = await supabase.functions.invoke('borrar-cuenta', {
+    body: { apple_authorization_code: codigo },
+  });
+  if (error) throw await errorDeBorrado(error);
+
+  // La cuenta ya no existe en el servidor: el cierre de sesión puede responder 401/403 y en ese caso
+  // supabase-js limpia la sesión local igualmente. Un error aquí no tiene nada que decir.
+  await supabase.auth.signOut().catch(() => undefined);
   await borrarTodoLocal();
+  return true;
+}
+
+/**
+ * Traduce el fallo de la Edge Function a un código que `mensajeDe` conoce. El cuerpo JSON de la
+ * función trae `error` (`apple_no_revocado`, `falta_codigo_apple`, `sin_sesion`, `no_borrado`).
+ */
+async function errorDeBorrado(error: unknown): Promise<Error> {
+  if (error instanceof FunctionsHttpError) {
+    const cuerpo = (await error.context.json().catch(() => null)) as { error?: unknown } | null;
+    switch (cuerpo?.error) {
+      case 'apple_no_revocado':
+        return new Error('apple-no-revocado');
+      case 'falta_codigo_apple':
+        return new Error('apple-sin-codigo');
+      case 'sin_sesion':
+        return new Error('hace falta sesion');
+      default:
+        return new Error('no se pudo borrar la cuenta');
+    }
+  }
+  return error instanceof Error ? error : new Error(String(error));
 }

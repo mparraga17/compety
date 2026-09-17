@@ -307,10 +307,14 @@ export async function cerrarPeriodos(hoy = periodoDe()): Promise<number> {
  * con la base propia de quien entrena, asi que no expone ningun valor de salud.
  *
  * La huella evita avisar dos veces de la misma sesion si el segundo plano se repite.
+ *
+ * ⭐ Desde la migracion 14 (17 sep) el aviso de sesion NO es de liga: va a los amigos del autor, y
+ * `liga` se manda null. El parametro sigue en la firma por el cliente viejo, que manda una liga y
+ * una huella `liga|sesion`; el servidor la ignora y normaliza la huella a la sesion.
  */
 export async function anotarAviso(entrada: {
-  liga: string;
-  clase: 'sesion' | 'liderato';
+  liga: string | null;
+  clase: 'sesion';
   puntos: number;
   tono: Tono;
   huella: string;

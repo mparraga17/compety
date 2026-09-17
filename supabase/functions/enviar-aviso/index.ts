@@ -38,6 +38,8 @@ type Aviso = {
   destinatario?: string | null;
   entreno?: string | null;
   texto?: string | null;
+  /** `autor|sesion` en los avisos de sesión (migración 14): la misma huella que `entrenos`. */
+  huella?: string | null;
 };
 
 type Payload = { type: string; record: Aviso };
@@ -133,7 +135,31 @@ function redactar(nombre: string, aviso: Aviso): { title: string; body: string }
 
 /** Texto genérico cuando el perfil no tiene nombre: distinto según de dónde venga el aviso. */
 function sinNombre(aviso: Aviso): string {
-  return aviso.destinatario ? 'Alguien' : 'Alguien de tu liga';
+  return aviso.destinatario || (aviso.clase === 'sesion' && !aviso.liga) ? 'Alguien' : 'Alguien de tu liga';
+}
+
+/**
+ * El entreno del feed al que apunta un aviso de sesión, para que al tocarlo se abra ese y no el
+ * feed a secas. La huella del aviso (`autor|sesion`, migración 14) es la misma que la de `entrenos`,
+ * así que es una búsqueda exacta. Si no está (aún no publicado, o un aviso antiguo por liga), se
+ * abre el feed sin más: nunca se bloquea el envío por esto.
+ */
+async function entrenoDe(aviso: Aviso): Promise<string | null> {
+  if (aviso.clase !== 'sesion' || aviso.liga || !aviso.huella) return aviso.entreno ?? null;
+  const url = Deno.env.get('SUPABASE_URL');
+  const clave = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !clave) return null;
+  try {
+    const respuesta = await fetch(
+      `${url}/rest/v1/entrenos?huella=eq.${encodeURIComponent(aviso.huella)}&select=id&limit=1`,
+      { headers: { apikey: clave, Authorization: `Bearer ${clave}` } },
+    );
+    if (!respuesta.ok) return null;
+    const filas = (await respuesta.json()) as { id?: string }[];
+    return filas[0]?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Trocea los envios. La API de Expo acepta hasta 100 mensajes por peticion. */
@@ -187,6 +213,8 @@ Deno.serve(async (peticion) => {
 
     const perfil = (await sql('nombre_de', [{ p_usuario: aviso.autor }])) as string | null;
     const { title, body } = redactar(perfil ?? sinNombre(aviso), aviso);
+    // El entreno al que apunta el aviso, si es de sesión: abre esa tarjeta del feed al tocarlo.
+    const entreno = await entrenoDe(aviso);
 
     const recibos: unknown[] = [];
     for (const trozo of trocea(tokens)) {
@@ -208,7 +236,7 @@ Deno.serve(async (peticion) => {
             data: {
               clase: aviso.clase,
               liga: aviso.liga ?? undefined,
-              entreno: aviso.entreno ?? undefined,
+              entreno: entreno ?? undefined,
             },
           })),
         ),

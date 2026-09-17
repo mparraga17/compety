@@ -2,10 +2,16 @@ import { destinoDe } from './destino';
 
 describe('destino de un aviso al tocarlo', () => {
   test('los avisos de liga llevan a esa liga', () => {
+    // Un aviso de sesión ANTIGUO (anterior a la migración 14) traía liga: sigue llevando a ella.
     expect(destinoDe({ clase: 'sesion', liga: 'L1' })).toEqual({ tipo: 'liga', liga: 'L1' });
     expect(destinoDe({ clase: 'liderato', liga: 'L1' })).toEqual({ tipo: 'liga', liga: 'L1' });
-    // Sin liga no hay a dónde ir: mejor quedarse que abrir algo equivocado.
-    expect(destinoDe({ clase: 'sesion' })).toBeNull();
+    // El liderato sin liga no tiene a dónde ir: mejor quedarse que abrir algo equivocado.
+    expect(destinoDe({ clase: 'liderato' })).toBeNull();
+  });
+
+  test('la sesión de un amigo lleva al feed, a su entreno si viene resuelto', () => {
+    expect(destinoDe({ clase: 'sesion', entreno: 'E1' })).toEqual({ tipo: 'feed', entreno: 'E1' });
+    expect(destinoDe({ clase: 'sesion' })).toEqual({ tipo: 'feed', entreno: null });
   });
 
   test('pedir y aceptar amistad llevan a la bandeja de amigos', () => {

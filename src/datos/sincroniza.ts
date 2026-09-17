@@ -233,30 +233,32 @@ export async function sincroniza(): Promise<Sincronizacion> {
       subidas += 1;
     }
 
-    // ⭐ Avisos: TODA sesion terminada en las ultimas 24 horas (decision del usuario, 17 sep).
-    // Antes solo la ultima de la semana y solo si era fuerte: en diez dias de beta, 25 sesiones
-    // de un amigo y un solo aviso. El porque de la ventana y del orden esta en `motor/avisos`.
-    // El tono ya no decide si se avisa; viaja en el aviso para que el texto lo cuente.
-    for (const s of sesionesQueAvisan(resultado.sesiones, Date.now(), filtro)) {
-      const tono = tonoDe(zDe(s.carga, resultado.base));
-      // La huella incluye la sesion, asi que repetir la sincronizacion no reavisa. El servidor
-      // la cualifica ademas con el autor (migracion 12) y acota a 10 por liga y dia.
-      //
-      // ⚠️ El aviso es un EFECTO SECUNDARIO de la puntuacion, no la puntuacion. Si el servidor lo
-      // rechaza (cupo de avisos, clase no admitida) o falla la red justo aqui, la sincronizacion
-      // de las demas ligas tiene que seguir: sin este catch, un aviso caido cortaba el bucle y
-      // dejaba ligas sin puntuar. Lo que se traga es el aviso, y solo el aviso.
-      const anotado = await anotarAviso({
-        liga: liga.id,
-        clase: 'sesion',
-        puntos: s.puntos,
-        tono,
-        huella: `${liga.id}|${s.id}`,
-      })
-        .then(() => true)
-        .catch(() => false);
-      if (anotado) avisos += 1;
-    }
+  }
+
+  // ⭐ Avisos a TUS AMIGOS de toda sesion terminada en las ultimas 24 horas (decision del usuario,
+  // 17 sep). Antes era un aviso DE LIGA, a los miembros de cada liga, solo de la ultima sesion de
+  // la semana y solo si era fuerte: en diez dias de beta, 25 sesiones de un amigo y un solo aviso.
+  // Ahora: un aviso por sesion, fuera del bucle de ligas y sin liga; el servidor lo reparte entre
+  // los amigos (migracion 14). El porque de la ventana y del orden esta en `motor/avisos`. El tono
+  // ya no decide si se avisa; viaja en el aviso para que el texto lo cuente.
+  for (const s of sesionesQueAvisan(resultado.sesiones, Date.now())) {
+    const tono = tonoDe(zDe(s.carga, resultado.base));
+    // La huella es la sesion: repetir la sincronizacion no reavisa. El servidor la cualifica con
+    // el autor y acota a 30 avisos por persona y dia.
+    //
+    // ⚠️ El aviso es un EFECTO SECUNDARIO de la puntuacion, no la puntuacion. Si el servidor lo
+    // rechaza (cupo, clase no admitida) o falla la red justo aqui, la sincronizacion ya ha
+    // terminado lo importante; lo que se traga es el aviso, y solo el aviso.
+    const anotado = await anotarAviso({
+      liga: null,
+      clase: 'sesion',
+      puntos: s.puntos,
+      tono,
+      huella: s.id,
+    })
+      .then(() => true)
+      .catch(() => false);
+    if (anotado) avisos += 1;
   }
 
   return { ligas, subidas, avisos, movimientos, soloLocal: false };

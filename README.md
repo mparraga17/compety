@@ -58,6 +58,21 @@ iPhone                                         Server
 5. **A silent `return` hid failed uploads.** With an expired session, uploads "finished fine" without uploading anything. Writes now throw. → [`src/data/supabase.ts`](src/data/supabase.ts)
 6. **Notifications must not leak health data.** Apple forbids disclosing HealthKit information to third parties. "Marta scored 88 points" is fine; anything with heart rate is not. → [`src/notifications/push.ts`](src/notifications/push.ts)
 
+## Shipped with Expo, from Windows
+
+Compety went from first commit to the App Store in about a month, built by one person on a Windows laptop, with no Mac at any point. [Expo](https://expo.dev) is what made that possible:
+
+| Step | How |
+|---|---|
+| Native modules | **Development build** with `expo-dev-client`. HealthKit is native, so Expo Go was never an option |
+| iOS builds | **EAS Build** compiles the iPhone binary in the cloud and signs it, no Xcode on the developer's machine |
+| TestFlight and App Store | **EAS Submit** uploads every build straight to App Store Connect |
+| Fixes without a new build | **EAS Update**: over-the-air updates to the JavaScript. More than ten during the beta, each one live on testers' phones within minutes |
+| Safe updates | Each update targets a runtime fingerprint, so a JavaScript update never lands on a binary with different native code |
+| Crash reports | Sentry's Expo plugin uploads source maps with every build and update, so stack traces stay readable |
+
+The rule that came out of it: a change that only touches JavaScript ships over the air the same night; a change to native code waits for a new build.
+
 ## What is in this repo
 
 | Folder | What it shows |
@@ -78,7 +93,7 @@ More of the app (sync, social feed, leagues, screens, components) will be added 
 | Backend | Supabase (EU region): auth with Sign in with Apple, Postgres with row level security, Edge Functions |
 | Notifications | Expo push, sent from a Supabase Edge Function |
 | Crash reports | Sentry (EU region), errors only, no personal data |
-| Builds and updates | EAS Build and EAS Update, from a Windows machine |
+| Builds and updates | EAS Build, EAS Submit and EAS Update, all driven from a Windows machine |
 
 HealthKit is a native module, so the app runs as a development build from day one. Expo Go never works.
 

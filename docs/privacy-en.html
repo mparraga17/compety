@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Compety</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Privacy Policy</h1>
+    <p class="subtitle">Compety</p>
+    <p class="updated">Last updated: 22 September 2026</p>
+  </header>
+
+  <p class="lang-switch"><a href="privacy-es.html">Ver en español</a></p>
+
+  <main>
+    <p>Compety is a sports competition app for groups of friends. It reads physical activity data from your iPhone, calculates a score, and shares that score with members of the leagues you join. This policy explains what data is handled, where it is handled, and what leaves your phone.</p>
+
+    <div class="aviso">
+      <p><strong>The short version.</strong> Your health data is read and processed on your own iPhone. Only your score travels to the server and, for each workout, the sport type and when it ended; never your heart rate, your sleep, or the duration or detail of your sessions.</p>
+    </div>
+
+    <h2>1. Data controller</h2>
+    <p>The controller is <strong>Manuel Parraga</strong>, an individual based in Spain, trading as Pizco Deploy.</p>
+    <ul>
+      <li><strong>Contact:</strong> <a href="mailto:pizcodeploy@gmail.com">pizcodeploy@gmail.com</a></li>
+    </ul>
+
+    <h2>2. Health data: what is read and where it stays</h2>
+    <p>With your explicit authorisation, Compety reads the following from the Health app on your iPhone (HealthKit):</p>
+
+    <table>
+      <tr><th>Data</th><th>Purpose</th><th>Leaves the phone</th></tr>
+      <tr><td>Workouts: type, duration and time</td><td>Know what activity you did</td><td>No</td></tr>
+      <tr><td>Heart rate during those workouts</td><td>Calculate the effort of the session</td><td>No</td></tr>
+      <tr><td>Active energy, distance and steps</td><td>Session context</td><td>No</td></tr>
+      <tr><td>Sleep and daily metrics (resting heart rate, oxygen saturation, respiratory rate, VO₂ max, heart rate variability)</td><td>Show you your own trend</td><td>No</td></tr>
+      <tr><td><strong>Your score</strong></td><td>League standings</td><td><strong>Yes</strong></td></tr>
+      <tr><td><strong>Per workout: sport type, points, whether it was a hard, regular or easy session for you, and the time it ended</strong></td><td>Friends feed, so your people can cheer you on</td><td><strong>Yes</strong> (no duration, no heart rate, no route)</td></tr>
+    </table>
+
+    <p>Score calculation happens <strong>entirely on your device</strong>. Raw health data is not transmitted to any server, is not stored outside your iPhone, and is not copied to iCloud.</p>
+
+    <p>Compety <strong>does not write</strong> any data to the Health app.</p>
+
+    <h2>3. Where the data comes from</h2>
+    <p>Compety does not connect to your tracker or watch. It only reads what other apps have saved into the Health app, whether that is the iPhone itself, an Apple Watch, or apps such as Google Health, WHOOP, Garmin Connect, Oura, Strava or Nike Run Club.</p>
+    <p>You enable that sync inside each of those apps, and it is governed by their own privacy policies, which are independent from this one.</p>
+
+    <h2>4. Account data</h2>
+    <p>Competing with other people requires an account. The following data is processed:</p>
+    <ul>
+      <li><strong>Sign-in identifier:</strong> your email address, or the identifier provided by Sign in with Apple. If you use Sign in with Apple you can choose to hide your real address, in which case we only receive an anonymous relay address from Apple.</li>
+      <li><strong>Display name:</strong> whatever you choose to appear as in standings. It can be a nickname and you can change it any time.</li>
+      <li><strong>Leagues you belong to</strong> and the scores you have earned.</li>
+      <li><strong>Your in-app friendships</strong> (requests sent and accepted), and the <strong>reactions and comments</strong> you leave on other people’s workouts.</li>
+    </ul>
+    <p>Date of birth, gender, phone number, postal address and identity documents are never requested.</p>
+
+    <h2>5. What other people can see</h2>
+    <p>Members of a league you have joined can see your display name, your score and your position in that league.</p>
+    <p><strong>Friends feed.</strong> Your accepted friends and the members of your private leagues can see, for each of your workouts, the sport type, the points, whether it was a hard, regular or easy session compared with your own average, when it ended, a duration label (short, medium or long, never the exact minutes) and how the effort was measured (heart rate, self-reported or estimated). They can react and comment, and you see the same from them. Members of public area leagues do <strong>not</strong> see your workouts. You can remove any workout from the feed inside the app.</p>
+    <p>Nobody can see your heart rate, your sleep, your health metrics, the duration of your sessions or your route. That data never leaves your phone, so it is not even available to share.</p>
+    <p>Leagues are only accessible with an invitation code. There is no public user directory and no people search.</p>
+
+    <h2>6. Contacts, location and advertising</h2>
+    <p>Compety <strong>does not access</strong> your contacts, your photos, your microphone or your camera.</p>
+    <p><strong>Location:</strong> if you choose to join your area leagues, you can tap "Use my location" so the app suggests your city and district. It is optional (you can type them instead), the permission is requested only at that moment, and coordinates are <strong>never stored and never leave your phone</strong>: only the area name you confirm goes to the server. Compety does not track your position, neither during workouts nor in the background.</p>
+    <p>Compety <strong>shows no advertising</strong> and does not use health data for advertising, marketing or commercial profiling. It is not sold or shared with third parties for those purposes.</p>
+
+    <h2>7. Service providers</h2>
+    <table>
+      <tr><th>Provider</th><th>Role</th><th>What it receives</th></tr>
+      <tr><td>Supabase</td><td>Authentication and database of accounts, leagues, scores and feed</td><td>Sign-in identifier, display name, scores, friendships, published workouts (type, points, tone, time), reactions and comments</td></tr>
+      <tr><td>Apple</td><td>Sign in with Apple and app distribution</td><td>Whatever Apple handles in its own sign-in process</td></tr>
+      <tr><td>Expo</td><td>App builds and updates</td><td>Technical installation data, no health data</td></tr>
+      <tr><td>GitHub Pages</td><td>Hosting of the website, the invite page and these legal pages</td><td>Technical visit data in GitHub's server logs, under its own privacy policy</td></tr>
+      <tr><td>Sentry</td><td>Crash reports: when the app breaks, it sends the error so we can fix it</td><td>The technical stack trace, device model, iOS and app version. No IP address, no user identifiers, and no health data or scores. Servers in the European Union</td></tr>
+    </table>
+    <p>None of these providers receives health data.</p>
+    <p>The Compety website uses <strong>no cookies</strong>, no analytics tools and no third-party embedded content. That is why you will not see a cookie banner: there is nothing to consent to.</p>
+
+    <h2>8. Legal basis and retention</h2>
+    <p>Processing of health data relies on your <strong>explicit consent</strong> (GDPR article 9.2.a), granted in the system permission sheet and withdrawable at any time from your iPhone Settings.</p>
+    <p>Processing of account data relies on <strong>performance of the service</strong> you request (article 6.1.b).</p>
+    <p>Account data and scores are kept while your account remains open. Deleting the account deletes them.</p>
+
+    <h2>9. Your rights</h2>
+    <p>You can exercise access, rectification, erasure, restriction, portability and objection rights by writing to <a href="mailto:pizcodeploy@gmail.com">pizcodeploy@gmail.com</a>.</p>
+    <p><strong>Delete your account:</strong> you can do it directly in the app, under Settings, without contacting anyone. Your account, display name, scores, friendships, published workouts with their reactions and comments, and league memberships are removed.</p>
+    <p><strong>Withdraw health data access:</strong> iPhone Settings, Privacy and Security, Health, Compety. The app keeps working, though without data it cannot calculate your score.</p>
+    <p>If you believe the processing does not comply with the applicable rules, you may lodge a complaint with the <a href="https://www.aepd.es" target="_blank" rel="noopener">Spanish Data Protection Agency</a>.</p>
+
+    <h2>10. Children</h2>
+    <p>Compety is not directed at children under 16 and does not knowingly collect their data.</p>
+
+    <h2>11. Changes to this policy</h2>
+    <p>If this policy changes materially, notice will be given inside the app before the change takes effect. The last update date appears at the top.</p>
+  </main>
+
+  <footer>
+    <p>Compety · Pizco Deploy · <a href="terms-en.html">Terms and conditions</a></p>
+  </footer>
+</body>
+</html>

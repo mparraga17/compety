@@ -73,6 +73,37 @@ Compety went from first commit to the App Store in about a month, built by one p
 
 The rule that came out of it: a change that only touches JavaScript ships over the air the same night; a change to native code waits for a new build.
 
+## Built with an AI agent: skills and MCP servers
+
+The code was written by an AI coding agent while a product manager decided what to build and reviewed every result. Two kinds of add-ons made the agent useful beyond writing code:
+
+- **Skills** are written procedures the agent loads when a task needs them: how to review a design, how to read a paper.
+- **MCP servers** ([Model Context Protocol](https://modelcontextprotocol.io)) give the agent tools to act outside the code editor: drive a browser, push to GitHub.
+
+### Skills
+
+| Skill | What it was used for |
+|---|---|
+| **Paper reader** | Searches PubMed and PubMed Central, reads the **full text** of each paper (not only the abstract), rates the evidence and stores the findings in a reference library. It ran as a loop over effort measurement for each sport and its health effects; the scoring algorithm was built on that library |
+| **Apple design** | Apple's interface and motion principles. Used for the full frontend review: charts, headers, iOS menus, Dynamic Type, haptics, light mode |
+| **UI/UX Pro Max** | Palettes, contrast, typography and chart guidelines. Used to check every colour against WCAG contrast in both dark and light mode |
+| **Emil Kowalski design engineering** | Polish and animation details: easing, durations, sheets, toasts, gestures |
+| **Chrome debugging startup** | Relaunches Chrome with remote debugging so the browser MCP can attach to it |
+
+### MCP servers
+
+| Server | What it was used for |
+|---|---|
+| **Chrome DevTools MCP** | Drove a real Chrome: previewed every HTML mockup before any React Native was written, and filled in App Store Connect (version, build, release notes, screenshots, pricing check, submission for review) |
+| **GitHub MCP** | Pushed to this public repository and updated this README |
+
+### The workflow that came out of it
+
+1. **HTML mockup first**, with variants, previewed in Chrome through the MCP. Nothing reaches React Native until the mockup is approved.
+2. **Implement, then typecheck and run the test suite** before every commit.
+3. **Ship JavaScript changes over the air**, check them on a real iPhone, and roll back in a minute if something breaks.
+4. **Science before formulas**: every scoring decision traces back to a paper in the library.
+
 ## What is in this repo
 
 | Folder | What it shows |

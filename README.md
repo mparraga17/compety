@@ -87,7 +87,7 @@ Links, authors and setup notes for all of them are in [`resources/`](resources).
 | Skill | Author | What it was used for |
 |---|---|---|
 | [**Paper reader**](resources/skills/paper-reader/SKILL.md) | Compety, published here | Searches PubMed and PubMed Central, reads the **full text** of each paper (not only the abstract), rates the evidence and stores the findings in a reference library. It ran as a loop over effort measurement for each sport and its health effects; the scoring algorithm was built on that library |
-| [**apple-design**](https://github.com/emilkowalski/skills/tree/main/skills/apple-design) | [Emil Kowalski](https://github.com/emilkowalski) | Apple's interface and motion principles. Used for the full frontend review: charts, headers, iOS menus, Dynamic Type, haptics, light mode |
+| [**apple-design**](https://github.com/emilkowalski/skills/tree/main/skills/apple-design) | [Emil Kowalski](https://github.com/emilkowalski) | Apple's interface and motion principles. Used for the full frontend review (charts, headers, iOS menus, Dynamic Type, haptics, light mode) and as the style brief for the explainer video |
 | [**ui-ux-pro-max**](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | [Next Level Builder](https://github.com/nextlevelbuilder) | Palettes, contrast, typography and chart guidelines. Used to check every colour against WCAG contrast in both dark and light mode |
 | [**emil-design-eng**](https://github.com/emilkowalski/skills/tree/main/skills/emil-design-eng) | [Emil Kowalski](https://github.com/emilkowalski) | Polish and animation details: easing, durations, sheets, toasts, gestures |
 
@@ -95,7 +95,7 @@ Links, authors and setup notes for all of them are in [`resources/`](resources).
 
 | Server | What it was used for |
 |---|---|
-| [**Chrome DevTools MCP**](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Drove a real Chrome: previewed every HTML mockup before any React Native was written, and filled in App Store Connect (version, build, release notes, screenshots, pricing check, submission for review) |
+| [**Chrome DevTools MCP**](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Drove a real Chrome: previewed every HTML mockup before any React Native was written, filled in App Store Connect (version, build, release notes, screenshots, pricing check, submission for review), and downloaded the motion capture for the videos |
 | [**GitHub MCP server**](https://github.com/github/github-mcp-server) | Pushed to this public repository and updated this README |
 
 ### The workflow that came out of it
@@ -105,6 +105,10 @@ Links, authors and setup notes for all of them are in [`resources/`](resources).
 3. **Ship JavaScript changes over the air**, check them on a real iPhone, and roll back in a minute if something breaks.
 4. **Science before formulas**: every scoring decision traces back to a paper in the library.
 
+## The launch videos
+
+The intro and the explainer were made in code too, with no video editor: [Remotion](https://www.remotion.dev) renders React frame by frame to MP4, [Three.js](https://threejs.org) draws the 3D iPhones and wristband, and [Mixamo](https://www.mixamo.com) provides real motion capture for the sports shots, drawn as pencil sketches by custom shaders. Every phone screen is redrawn from the app's real code. The full story and the lessons are in [`resources/videos.md`](resources/videos.md).
+
 ## What is in this repo
 
 | Folder | What it shows |
@@ -113,7 +117,7 @@ Links, authors and setup notes for all of them are in [`resources/`](resources).
 | [`src/notifications`](src/notifications) | Expo push notifications, routing a tap to the right screen, tested as pure JS |
 | [`src/data`](src/data) | Supabase client and making failed writes visible |
 | [`src/engine`](src/engine) | Example engine: Edwards heart-rate zones and TRIMP, with tests |
-| [`resources`](resources) | The skills and MCP servers the agent used, with credit to their authors |
+| [`resources`](resources) | The skills, MCP servers and video tools the agent used, with credit to their authors |
 
 More of the app (sync, social feed, leagues, screens, components) will be added here over time.
 
@@ -145,7 +149,7 @@ The HealthKit and notification code needs a development build on a real iPhone.
 
 All rights reserved. The code is published so anyone can read it and learn from how it works. No licence is granted to use, copy, modify or redistribute it.
 
-Third-party skills and MCP servers linked from [`resources/`](resources) belong to their authors and keep their own licences.
+Third-party skills, MCP servers and video tools linked from [`resources/`](resources) belong to their authors and keep their own licences.
 
 ---
 

@@ -5,6 +5,8 @@ Everything the AI agent used to build Compety beyond writing code. If you want t
 - **Skills** are written procedures (a `SKILL.md` file) that the agent loads when a task needs them.
 - **MCP servers** ([Model Context Protocol](https://modelcontextprotocol.io)) give the agent tools to act outside the editor: drive a browser, push to GitHub.
 
+The launch videos have their own page: [how the videos were made](videos.md).
+
 ## Skills
 
 ### Third-party skills
@@ -13,7 +15,7 @@ These belong to their authors. They are **linked, not copied**: install them fro
 
 | Skill | Author | Licence | Used for |
 |---|---|---|---|
-| [apple-design](https://github.com/emilkowalski/skills/tree/main/skills/apple-design) | [Emil Kowalski](https://github.com/emilkowalski) | MIT | Apple's interface and motion principles, distilled from the WWDC design talks. Used for the full frontend review: charts, headers, iOS menus, Dynamic Type, haptics, light mode |
+| [apple-design](https://github.com/emilkowalski/skills/tree/main/skills/apple-design) | [Emil Kowalski](https://github.com/emilkowalski) | MIT | Apple's interface and motion principles, distilled from the WWDC design talks. Used for the full frontend review (charts, headers, iOS menus, Dynamic Type, haptics, light mode) and as the style brief for the explainer video |
 | [emil-design-eng](https://github.com/emilkowalski/skills/tree/main/skills/emil-design-eng) | [Emil Kowalski](https://github.com/emilkowalski) | MIT | UI polish and animation decisions: easing, durations, sheets, toasts, gestures |
 | [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | [Next Level Builder](https://github.com/nextlevelbuilder) | MIT | Searchable palettes, font pairings, chart types and UX guidelines. Used to check every colour against WCAG contrast in dark and light mode |
 
@@ -31,8 +33,18 @@ It is published here so you can reuse it. It needs no API keys.
 
 | Server | Maintainer | Used for |
 |---|---|---|
-| [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Google Chrome team | Drove a real Chrome: previewed every HTML mockup before any React Native was written, and filled in App Store Connect (version, build, release notes, screenshots, pricing check, submission for review) |
+| [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Google Chrome team | Drove a real Chrome: previewed every HTML mockup before any React Native was written, filled in App Store Connect (version, build, release notes, screenshots, pricing check, submission for review), and downloaded the motion capture for the videos from Mixamo |
 | [GitHub MCP server](https://github.com/github/github-mcp-server) | GitHub | Pushed to this public repository and wrote these pages |
+
+## Video tools
+
+| Tool | Author | Used for |
+|---|---|---|
+| [Remotion](https://www.remotion.dev) | [Remotion](https://github.com/remotion-dev/remotion) | Writing the videos in React and rendering them frame by frame to MP4 |
+| [Three.js](https://threejs.org) | [three.js authors](https://github.com/mrdoob/three.js) | All the 3D: iPhones, wristband, floating layers |
+| [Mixamo](https://www.mixamo.com) | Adobe | Real motion capture for the sports shots |
+
+Details and lessons: [videos.md](videos.md).
 
 ### Two setup notes from Windows
 

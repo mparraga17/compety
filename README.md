@@ -80,22 +80,23 @@ The code was written by an AI coding agent while a product manager decided what 
 - **Skills** are written procedures the agent loads when a task needs them: how to review a design, how to read a paper.
 - **MCP servers** ([Model Context Protocol](https://modelcontextprotocol.io)) give the agent tools to act outside the code editor: drive a browser, push to GitHub.
 
+Links, authors and setup notes for all of them are in [`resources/`](resources).
+
 ### Skills
 
-| Skill | What it was used for |
-|---|---|
-| **Paper reader** | Searches PubMed and PubMed Central, reads the **full text** of each paper (not only the abstract), rates the evidence and stores the findings in a reference library. It ran as a loop over effort measurement for each sport and its health effects; the scoring algorithm was built on that library |
-| **Apple design** | Apple's interface and motion principles. Used for the full frontend review: charts, headers, iOS menus, Dynamic Type, haptics, light mode |
-| **UI/UX Pro Max** | Palettes, contrast, typography and chart guidelines. Used to check every colour against WCAG contrast in both dark and light mode |
-| **Emil Kowalski design engineering** | Polish and animation details: easing, durations, sheets, toasts, gestures |
-| **Chrome debugging startup** | Relaunches Chrome with remote debugging so the browser MCP can attach to it |
+| Skill | Author | What it was used for |
+|---|---|---|
+| [**Paper reader**](resources/skills/paper-reader/SKILL.md) | Compety, published here | Searches PubMed and PubMed Central, reads the **full text** of each paper (not only the abstract), rates the evidence and stores the findings in a reference library. It ran as a loop over effort measurement for each sport and its health effects; the scoring algorithm was built on that library |
+| [**apple-design**](https://github.com/emilkowalski/skills/tree/main/skills/apple-design) | [Emil Kowalski](https://github.com/emilkowalski) | Apple's interface and motion principles. Used for the full frontend review: charts, headers, iOS menus, Dynamic Type, haptics, light mode |
+| [**ui-ux-pro-max**](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | [Next Level Builder](https://github.com/nextlevelbuilder) | Palettes, contrast, typography and chart guidelines. Used to check every colour against WCAG contrast in both dark and light mode |
+| [**emil-design-eng**](https://github.com/emilkowalski/skills/tree/main/skills/emil-design-eng) | [Emil Kowalski](https://github.com/emilkowalski) | Polish and animation details: easing, durations, sheets, toasts, gestures |
 
 ### MCP servers
 
 | Server | What it was used for |
 |---|---|
-| **Chrome DevTools MCP** | Drove a real Chrome: previewed every HTML mockup before any React Native was written, and filled in App Store Connect (version, build, release notes, screenshots, pricing check, submission for review) |
-| **GitHub MCP** | Pushed to this public repository and updated this README |
+| [**Chrome DevTools MCP**](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Drove a real Chrome: previewed every HTML mockup before any React Native was written, and filled in App Store Connect (version, build, release notes, screenshots, pricing check, submission for review) |
+| [**GitHub MCP server**](https://github.com/github/github-mcp-server) | Pushed to this public repository and updated this README |
 
 ### The workflow that came out of it
 
@@ -112,6 +113,7 @@ The code was written by an AI coding agent while a product manager decided what 
 | [`src/notifications`](src/notifications) | Expo push notifications, routing a tap to the right screen, tested as pure JS |
 | [`src/data`](src/data) | Supabase client and making failed writes visible |
 | [`src/engine`](src/engine) | Example engine: Edwards heart-rate zones and TRIMP, with tests |
+| [`resources`](resources) | The skills and MCP servers the agent used, with credit to their authors |
 
 More of the app (sync, social feed, leagues, screens, components) will be added here over time.
 
@@ -142,6 +144,8 @@ The HealthKit and notification code needs a development build on a real iPhone.
 ## License
 
 All rights reserved. The code is published so anyone can read it and learn from how it works. No licence is granted to use, copy, modify or redistribute it.
+
+Third-party skills and MCP servers linked from [`resources/`](resources) belong to their authors and keep their own licences.
 
 ---
 

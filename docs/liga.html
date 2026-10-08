@@ -4,6 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Compety · Invitación</title>
+  <script>
+    /* Smart App Banner de Apple: Safari pinta arriba una franja nativa con «Abrir» si la app
+       está instalada o «Ver» (App Store) si no. app-argument le pasa a la app este mismo
+       enlace, que la app ya sabe leer (codigoDeUrl). Se inserta por JS porque el argumento
+       depende de la URL; Safari lo lee igual mientras esté en <head> al cargar. */
+    (function () {
+      var meta = document.createElement('meta');
+      meta.name = 'apple-itunes-app';
+      meta.content = 'app-id=6810288777, app-argument=' + location.href;
+      document.head.appendChild(meta);
+    })();
+  </script>
   <link rel="stylesheet" href="style.css" />
   <style>
     /* Solo lo propio de esta página; el resto viene de style.css. */

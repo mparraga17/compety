@@ -61,20 +61,17 @@
       <p class="centro"><a href="#" id="copiar" role="button" data-t="copiar">Copiar el código</a></p>
 
       <a class="boton" id="abrir" href="#" data-t="abrir">Unirme a la liga (ya tengo la app)</a>
-      <a class="boton secundario" id="testflight" href="#" data-t="probar">Probar Compety (TestFlight)</a>
-      <p class="paso" id="sin-beta" hidden data-t="sinBeta">
-        La beta abre en unos días. Guarda este enlace: cuando tengas la app, el mismo enlace te mete en la liga.
-      </p>
+      <a class="boton secundario" id="appstore" href="#" data-t="descargar">Descargar Compety en el App Store</a>
 
       <div class="aviso">
-        <p data-t="pasos"><strong>Si aún no tienes Compety:</strong> instala la app desde TestFlight,
+        <p data-t="pasos"><strong>Si aún no tienes Compety:</strong> descárgala gratis del App Store,
         entra con tu Apple ID, y toca este enlace otra vez o escribe el código en «Entrar con código».</p>
       </div>
     </div>
 
     <!-- Sin código en el enlace: página genérica de descarga. -->
     <div id="sin-codigo" hidden>
-      <a class="boton" id="testflight-solo" href="#" data-t="probar">Probar Compety (TestFlight)</a>
+      <a class="boton" id="appstore-solo" href="#" data-t="descargar">Descargar Compety en el App Store</a>
     </div>
 
     <!-- Sin data-t a propósito: el bucle de traducción usa textContent y destruiría el
@@ -93,9 +90,8 @@
   </footer>
 
   <script>
-    /* Enlace público de TestFlight (grupo externo «Amigos»). Funciona para nuevos
-       testers en cuanto Apple apruebe el build del grupo en Beta App Review. */
-    var TESTFLIGHT = 'https://testflight.apple.com/join/BSdtfeEb';
+    /* Enlace del App Store. Sin código de país: Apple redirige a la tienda de quien lo abre. */
+    var APP_STORE = 'https://apps.apple.com/app/compety/id6810288777';
 
     var TEXTOS = {
       es: {
@@ -106,9 +102,8 @@
         copiar: 'Copiar el código',
         copiado: 'Copiado ✓',
         abrir: 'Unirme a la liga (ya tengo la app)',
-        probar: 'Probar Compety (TestFlight)',
-        sinBeta: 'La beta abre en unos días. Guarda este enlace: cuando tengas la app, el mismo enlace te mete en la liga.',
-        pasos: 'Si aún no tienes Compety: instala la app desde TestFlight, entra con tu Apple ID, y toca este enlace otra vez o escribe el código en «Entrar con código».',
+        descargar: 'Descargar Compety en el App Store',
+        pasos: 'Si aún no tienes Compety: descárgala gratis del App Store, entra con tu Apple ID, y toca este enlace otra vez o escribe el código en «Entrar con código».',
         privacidad: 'Tus datos de salud se quedan en tu iPhone. Al servidor solo viaja tu puntuación. ',
         enlacePrivacidad: 'Política de privacidad',
         titulo: 'Compety · Invitación'
@@ -121,9 +116,8 @@
         copiar: 'Copy the code',
         copiado: 'Copied ✓',
         abrir: 'Join the league (I have the app)',
-        probar: 'Try Compety (TestFlight)',
-        sinBeta: 'The beta opens in a few days. Keep this link: once you have the app, the same link puts you in the league.',
-        pasos: "If you don't have Compety yet: install the app from TestFlight, sign in with your Apple ID, and tap this link again or type the code under “Join with a code”.",
+        descargar: 'Get Compety on the App Store',
+        pasos: "If you don't have Compety yet: get it free on the App Store, sign in with your Apple ID, and tap this link again or type the code under “Join with a code”.",
         privacidad: 'Your health data stays on your iPhone. Only your score travels to the server. ',
         enlacePrivacidad: 'Privacy policy',
         titulo: 'Compety · Invitation'
@@ -187,17 +181,11 @@
       });
     }
 
-    // TestFlight: con enlace, botón; sin él, la verdad.
-    ['testflight', 'testflight-solo'].forEach(function (id) {
+    // Descarga: los dos botones (con y sin código) apuntan al App Store.
+    ['appstore', 'appstore-solo'].forEach(function (id) {
       var boton = document.getElementById(id);
-      if (!boton) return;
-      if (TESTFLIGHT) boton.href = TESTFLIGHT;
-      else boton.hidden = true;
+      if (boton) boton.href = APP_STORE;
     });
-    if (!TESTFLIGHT) {
-      var nota = document.getElementById('sin-beta');
-      if (nota) nota.hidden = false;
-    }
   </script>
 </body>
 </html>

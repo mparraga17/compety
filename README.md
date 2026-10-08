@@ -121,6 +121,7 @@ The intro and the explainer were made in code too, with no video editor: [Remoti
 | [`src/engine`](src/engine) | Example engine: Edwards heart-rate zones and TRIMP, with tests |
 | [`resources`](resources) | The skills, MCP servers and video tools the agent used, with credit to their authors |
 | [`LEARNINGS.md`](LEARNINGS.md) | Milestones, product decisions and lessons from the whole build, by area |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the database and backend are laid out, and the patterns worth copying |
 
 More of the app (sync, social feed, leagues, screens, components) will be added here over time.
 

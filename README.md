@@ -58,6 +58,8 @@ iPhone                                         Server
 5. **A silent `return` hid failed uploads.** With an expired session, uploads "finished fine" without uploading anything. Writes now throw. → [`src/data/supabase.ts`](src/data/supabase.ts)
 6. **Notifications must not leak health data.** Apple forbids disclosing HealthKit information to third parties. "Marta scored 88 points" is fine; anything with heart rate is not. → [`src/notifications/push.ts`](src/notifications/push.ts)
 
+These are the six with code in this repo. The milestones, the product decisions and every other lesson, grouped by area, are in [`LEARNINGS.md`](LEARNINGS.md).
+
 ## Shipped with Expo, from Windows
 
 Compety went from first commit to the App Store in about a month, built by one person on a Windows laptop, with no Mac at any point. [Expo](https://expo.dev) is what made that possible:
@@ -118,6 +120,7 @@ The intro and the explainer were made in code too, with no video editor: [Remoti
 | [`src/data`](src/data) | Supabase client and making failed writes visible |
 | [`src/engine`](src/engine) | Example engine: Edwards heart-rate zones and TRIMP, with tests |
 | [`resources`](resources) | The skills, MCP servers and video tools the agent used, with credit to their authors |
+| [`LEARNINGS.md`](LEARNINGS.md) | Milestones, product decisions and lessons from the whole build, by area |
 
 More of the app (sync, social feed, leagues, screens, components) will be added here over time.
 
